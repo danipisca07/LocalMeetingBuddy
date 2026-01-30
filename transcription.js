@@ -26,6 +26,7 @@ class TranscriptionService extends EventEmitter {
       interim_results: true,
       utterance_end_ms: 1000,
       vad_events: true,
+      diarize: true,
     });
 
     this.connection.on(LiveTranscriptionEvents.Open, () => {
@@ -47,9 +48,23 @@ class TranscriptionService extends EventEmitter {
     this.connection.on(LiveTranscriptionEvents.Transcript, (data) => {
       const transcript = data.channel.alternatives[0].transcript;
       const confidence = data.channel.alternatives[0].confidence;
-      const ts = Date.now();
+      
       if (transcript && data.is_final) {
-        this.emit('transcription', { text: transcript, confidence, timestamp: ts, source: this.source });
+        const list = data.channel.alternatives[0].words.map(w => ({ speaker: w.speaker, word: w.word }));
+        //join all words from the same speaker
+        var phrases = list.reduce((acc, cur) => {
+          if (acc.length === 0 || acc[acc.length - 1].speaker !== cur.speaker) {
+            acc.push({ speaker: cur.speaker, words: [cur.word] });
+          } else {
+            acc[acc.length - 1].words.push(cur.word);
+          }
+          return acc;
+        }, []);
+        const ts = Date.now();
+        //this.emit('transcription', { text: transcript, confidence, timestamp: ts, source: this.source });
+        
+        //console.log(phrases.map(p => `${p.speaker}: ${p.words.join(' ')}`).join('\n'))
+        phrases.forEach(x => this.emit('transcription', { text: x.words.join(' '), speaker: x.speaker, confidence, timestamp: ts, source: this.source }));
       }
     });
 

@@ -6,7 +6,7 @@ class ClaudeClient {
     this.anthropic = new Anthropic({ apiKey });
     this.transcript = [];
     this.chatHistory = [];
-    this.systemPrompt = "You are an AI meeting assistant. You will receive real-time transcripts labeled by source (user or caller). Use this context to answer user questions accurately and concisely.";
+    this.systemPrompt = "You are an AI meeting assistant. You will receive real-time transcripts labeled by source (user or a number representing a caller). Use this context to answer user questions accurately and concisely.";
     this.isProcessing = false;
     this.queue = [];
   }

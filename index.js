@@ -48,8 +48,9 @@ micTranscription.on('transcription', (evt) => {
 });
 sysTranscription.on('transcription', (evt) => {
   if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
-    console.log(`[caller]: ${evt.text}`);
-    claude.addTranscriptEntry({ source: 'caller', text: evt.text, confidence: evt.confidence, timestamp: evt.timestamp });
+    var source = evt.speaker ?? 'unknown caller';
+    console.log(`[${source}]: ${evt.text}`);
+    claude.addTranscriptEntry({ source: source, text: evt.text, confidence: evt.confidence, timestamp: evt.timestamp });
     rl.prompt(true);
   }
 });
