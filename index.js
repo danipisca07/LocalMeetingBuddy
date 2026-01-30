@@ -1,0 +1,143 @@
+require('dotenv').config();
+const readline = require('readline');
+const AudioCapture = require('./audio-capture');
+const TranscriptionService = require('./transcription');
+const ClaudeClient = require('./claude-client');
+
+// Configuration
+const SAMPLE_RATE = 16000;
+const CONFIDENCE_THRESHOLD = 0.85; // requirement: > 0.85
+
+// Initialize clients
+const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
+const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+
+if (!deepgramApiKey || !anthropicApiKey) {
+  console.error('Error: DEEPGRAM_API_KEY and ANTHROPIC_API_KEY must be set in .env');
+  process.exit(1);
+}
+
+const micCapture = new AudioCapture({ 
+  sampleRate: SAMPLE_RATE,
+  deviceId: process.env.AUDIO_DEVICE_ID_MIC
+});
+const sysCapture = new AudioCapture({ 
+  sampleRate: SAMPLE_RATE,
+  deviceId: process.env.AUDIO_DEVICE_ID_SYSTEM
+});
+const micTranscription = new TranscriptionService(deepgramApiKey);
+const sysTranscription = new TranscriptionService(deepgramApiKey);
+const claude = new ClaudeClient(anthropicApiKey);
+
+// Setup Readline for Terminal UI
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: 'MeetingTwin > '
+});
+
+console.log('--- MeetingTwin AI Assistant ---');
+console.log('Initializing audio and transcription...');
+
+micTranscription.on('transcription', (evt) => {
+  if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
+    console.log(`[user]: ${evt.text}`);
+    claude.addTranscriptEntry({ source: 'user', text: evt.text, confidence: evt.confidence, timestamp: evt.timestamp });
+    rl.prompt(true);
+  }
+});
+sysTranscription.on('transcription', (evt) => {
+  if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
+    console.log(`[caller]: ${evt.text}`);
+    claude.addTranscriptEntry({ source: 'caller', text: evt.text, confidence: evt.confidence, timestamp: evt.timestamp });
+    rl.prompt(true);
+  }
+});
+
+micTranscription.on('connected', () => {
+  micCapture.start();
+});
+sysTranscription.on('connected', () => {
+  sysCapture.start();
+});
+
+micTranscription.on('error', (err) => {
+  console.error('Mic transcription error:', err.message);
+});
+sysTranscription.on('error', (err) => {
+  console.error('System transcription error:', err.message);
+});
+
+micCapture.on('audio', (data) => {
+  micTranscription.sendAudio(data);
+});
+sysCapture.on('audio', (data) => {
+  sysTranscription.sendAudio(data);
+});
+
+micCapture.on('error', (err) => {
+  console.error('Mic audio error:', err.message);
+});
+sysCapture.on('error', (err) => {
+  console.error('System audio error:', err.message);
+});
+
+// Main Loop
+async function startApp() {
+  try {
+    micCapture.initialize();
+    sysCapture.initialize();
+    micTranscription.connect(micCapture.sampleRate, 'user');
+    sysTranscription.connect(sysCapture.sampleRate, 'caller');
+    
+    rl.prompt();
+
+    rl.on('line', async (line) => {
+      const input = line.trim();
+      
+      if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
+        shutdown();
+        return;
+      }
+
+      if (input.toLowerCase() === 'history') {
+        console.log('\n--- Meeting History ---');
+        console.log(claude.getTranscript());
+        console.log('------------------------\n');
+        rl.prompt();
+        return;
+      }
+
+      if (input) {
+        process.stdout.write('Claude is thinking...\n');
+        try {
+          const response = await claude.query(input);
+          console.log(`\nClaude: ${response}\n`);
+        } catch (err) {
+          console.error(`\nError querying Claude: ${err.message}\n`);
+        }
+      }
+      rl.prompt();
+    });
+
+  } catch (err) {
+    console.error('Failed to start application:', err.message);
+    shutdown();
+  }
+}
+
+function shutdown() {
+  console.log('\nShutting down gracefully...');
+  micCapture.stop();
+  sysCapture.stop();
+  micTranscription.disconnect();
+  sysTranscription.disconnect();
+  rl.close();
+  process.exit(0);
+}
+
+// Handle signals
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+startApp();
