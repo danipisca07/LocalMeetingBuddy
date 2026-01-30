@@ -48,7 +48,7 @@ class ClaudeClient {
 
       //const response = messages.map(m => `${m.role}: ${m.content}`).join('\n')
       const response = await this.anthropic.messages.create({
-        model: "claude-sonnet-4-5",
+        model: process.env.CLAUDE_MODEL_ID,
         max_tokens: 1024,
         system: dynamicSystemPrompt,
         messages
