@@ -49,18 +49,23 @@ class ClaudeClient {
 
       const messages = [...this.chatHistory, { role: 'user', content: userText }];
 
-      //const response = messages.map(m => `${m.role}: ${m.content}`).join('\n')
+      this.transcript.push({ timestamp: Date.now(), source: 'user', text: userText });
+      if(process.env.SKIP_LLM === 'true') {
+        resolve('SKIPPED LLM');
+        return;
+      }
       const response = await this.anthropic.messages.create({
         model: process.env.CLAUDE_MODEL_ID,
         max_tokens: 1024,
         system: dynamicSystemPrompt,
         messages
       });
-
+      
       const reply = response.content[0].text;
       
       this.chatHistory.push({ role: 'user', content: userText });
       this.chatHistory.push({ role: 'assistant', content: reply });
+      this.transcript.push({ timestamp: Date.now(), source: 'assistant', text: reply });
 
       resolve(reply);
     } catch (error) {

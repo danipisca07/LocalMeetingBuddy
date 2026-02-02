@@ -98,12 +98,15 @@ async function startApp() {
       const input = line.trim();
       
       if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
-        const recap = await claude.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
-        console.log(`\nMeeting Recap: ${recap}\n`);
-        // save recap to file
-        fs.writeFileSync(Date.now() + '-meeting-recap.md', recap);
+        if(process.env.SKIP_LLM !== 'true') {
+          const recap = await claude.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
+          console.log(`\nMeeting Recap: ${recap}\n`);
+          // save recap to file
+          fs.writeFileSync(`meetings/${Date.now()}-meeting-recap.md`, recap);
+        }
+
         // save transcript to file
-        fs.writeFileSync(Date.now() + '-meeting-transcript.txt', claude.getTranscript());
+        fs.writeFileSync(`meetings/${Date.now()}-meeting-transcript.txt`, claude.getTranscript());
         shutdown();
         return;
       }
@@ -147,5 +150,10 @@ function shutdown() {
 // Handle signals
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+// Create meetings directory if it doesn't exist
+if (!fs.existsSync('meetings')) {
+  fs.mkdirSync('meetings');
+}
 
 startApp();
