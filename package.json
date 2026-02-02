@@ -14,6 +14,7 @@
     "@anthropic-ai/sdk": "^0.72.1",
     "@deepgram/sdk": "^4.11.3",
     "dotenv": "^17.2.3",
+    "groq-sdk": "^0.37.0",
     "naudiodon": "^2.3.6",
     "ws": "^8.19.0"
   },

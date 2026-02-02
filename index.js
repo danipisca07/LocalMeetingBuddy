@@ -4,6 +4,7 @@ const AudioCapture = require('./audio-capture');
 const TranscriptionService = require('./transcription');
 const TranscriptManager = require('./transcript-manager');
 const ClaudeClient = require('./claude-client');
+const GroqClient = require('./groq-client');
 const fs = require('fs');
 
 // Configuration
@@ -27,7 +28,8 @@ const sysCapture = new AudioCapture({
 const micTranscription = new TranscriptionService(deepgramApiKey);
 const sysTranscription = new TranscriptionService(deepgramApiKey);
 const transcriptManager = new TranscriptManager();
-const aiClient = new ClaudeClient(transcriptManager);
+//const aiClient = new ClaudeClient(transcriptManager);
+const aiClient = new GroqClient(transcriptManager);
 
 // Setup Readline for Terminal UI
 const rl = readline.createInterface({
@@ -118,12 +120,12 @@ async function startApp() {
       }
 
       if (input) {
-        process.stdout.write('Claude is thinking...\n');
+        process.stdout.write('Agent is thinking...\n');
         try {
           const response = await aiClient.query(input);
-          console.log(`\nClaude: ${response}\n`);
+          console.log(`\Agent: ${response}\n`);
         } catch (err) {
-          console.error(`\nError querying Claude: ${err.message}\n`);
+          console.error(`\nError querying agent: ${err.message}\n`);
         }
       }
       rl.prompt();

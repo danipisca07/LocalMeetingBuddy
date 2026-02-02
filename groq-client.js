@@ -1,20 +1,19 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const Groq = require('groq-sdk');
 const ChatHistoryManager = require('./chat-history-manager');
 
-class ClaudeClient {
+class GroqClient {
   /**
-   * @param {string} apiKey - The Anthropic API key.
    * @param {TranscriptManager} transcriptManager - The transcript manager instance.
    */
   constructor(transcriptManager) {
     
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
-      console.error('Error: ANTHROPIC_API_KEY must be set in .env');
+      console.error('Error: GROQ_API_KEY must be set in .env');
       process.exit(1);
     }
-    this.anthropic = new Anthropic({ apiKey });
+    this.groq = new Groq({ apiKey });
     this.transcriptManager = transcriptManager;
     this.chatHistoryManager = new ChatHistoryManager();
     //eng
@@ -42,27 +41,26 @@ class ClaudeClient {
       const currentTranscript = this.transcriptManager.getTranscript()
       const dynamicSystemPrompt = `${this.systemPrompt}\n\n=== TRASCRIZIONE MEETING ===\n${currentTranscript}\n=== FINE TRASCRIZIONE ===`;
 
+      // Groq (OpenAI-compatible) expects system prompt as the first message
       const messages = [
-        ...this.chatHistoryManager.getHistory().map(x => {
-          x.role,
-          x.content
-        }), 
+        { role: 'system', content: dynamicSystemPrompt },
+        ...this.chatHistoryManager.getHistory(),
         { role: 'user', content: userText }
       ];
 
-      this.transcriptManager.addTranscriptEntry(Date.now(), 'user-text', userText);
+      this.transcriptManager.addTranscriptEntry(Date.now(), 'user', userText);
       if(process.env.SKIP_LLM === 'true') {
         resolve('SKIPPED LLM');
         return;
       }
-      const response = await this.anthropic.messages.create({
-        model: process.env.CLAUDE_MODEL_ID,
-        max_tokens: process.env.CLAUDE_MAX_TOKENS || 1024,
-        system: dynamicSystemPrompt,
-        messages
+      
+      const response = await this.groq.chat.completions.create({
+        messages: messages,
+        model: process.env.GROQ_MODEL_ID || "llama3-8b-8192",
+        max_tokens: process.env.GROQ_MAX_TOKENS || 1024,
       });
       
-      const reply = response.content[0].text;
+      const reply = response.choices[0]?.message?.content || "";
       
       this.chatHistoryManager.addMessage('user', userText);
       this.chatHistoryManager.addMessage('assistant', reply);
@@ -70,7 +68,7 @@ class ClaudeClient {
 
       resolve(reply);
     } catch (error) {
-      console.error('Claude API Error:', error);
+      console.error('Groq API Error:', error);
       if (error.status === 429) {
           console.warn("Rate limited. Consider implementing backoff.");
       }
@@ -84,4 +82,4 @@ class ClaudeClient {
   }
 }
 
-module.exports = ClaudeClient;
+module.exports = GroqClient;
