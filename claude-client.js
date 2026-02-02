@@ -6,7 +6,10 @@ class ClaudeClient {
     this.anthropic = new Anthropic({ apiKey });
     this.transcript = [];
     this.chatHistory = [];
-    this.systemPrompt = "You are an AI meeting assistant. You will receive real-time transcripts labeled by source (user or a number representing a caller). Use this context to answer user questions accurately and concisely.";
+    //eng
+    //this.systemPrompt = "You are an AI meeting assistant. You will receive real-time transcripts labeled by source (user or a number representing a caller). Use this context to answer user questions accurately and concisely.";
+    //ita
+    this.systemPrompt = "Sei un assistente AI di riunione. Riceverai trascrizioni in tempo reale etichettate da sorgente (utente o un numero che rappresenta un chiamante). Utilizza questo contesto per rispondere alle domande dell'utente in modo accurato e conciso.";
     this.isProcessing = false;
     this.queue = [];
   }
@@ -42,7 +45,7 @@ class ClaudeClient {
         const confStr = r.confidence !== undefined ? ` (conf=${r.confidence.toFixed(2)})` : '';
         return `[${timeStr}] [${r.source}]${confStr} ${r.text}`;
       }).join('\n');
-      const dynamicSystemPrompt = `${this.systemPrompt}\n\n=== MEETING TRANSCRIPT ===\n${currentTranscript}\n=== END TRANSCRIPT ===`;
+      const dynamicSystemPrompt = `${this.systemPrompt}\n\n=== TRASCRIZIONE MEETING ===\n${currentTranscript}\n=== FINE TRASCRIZIONE ===`;
 
       const messages = [...this.chatHistory, { role: 'user', content: userText }];
 

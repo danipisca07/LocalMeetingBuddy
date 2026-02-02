@@ -3,6 +3,7 @@ const readline = require('readline');
 const AudioCapture = require('./audio-capture');
 const TranscriptionService = require('./transcription');
 const ClaudeClient = require('./claude-client');
+const fs = require('fs');
 
 // Configuration
 const SAMPLE_RATE = 16000;
@@ -97,6 +98,12 @@ async function startApp() {
       const input = line.trim();
       
       if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
+        const recap = await claude.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
+        console.log(`\nMeeting Recap: ${recap}\n`);
+        // save recap to file
+        fs.writeFileSync(Date.now() + '-meeting-recap.md', recap);
+        // save transcript to file
+        fs.writeFileSync(Date.now() + '-meeting-transcript.txt', claude.getTranscript());
         shutdown();
         return;
       }
