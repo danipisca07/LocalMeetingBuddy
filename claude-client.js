@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const ChatHistoryManager = require('./chat-history-manager');
 
 class ClaudeClient {
   /**
@@ -15,7 +16,7 @@ class ClaudeClient {
     }
     this.anthropic = new Anthropic({ apiKey });
     this.transcriptManager = transcriptManager;
-    this.chatHistory = [];
+    this.chatHistoryManager = new ChatHistoryManager();
     //eng
     //this.systemPrompt = "You are an AI meeting assistant. You will receive real-time transcripts labeled by source (user or a number representing a caller). Use this context to answer user questions accurately and concisely.";
     //ita
@@ -41,9 +42,15 @@ class ClaudeClient {
       const currentTranscript = this.transcriptManager.getTranscript()
       const dynamicSystemPrompt = `${this.systemPrompt}\n\n=== TRASCRIZIONE MEETING ===\n${currentTranscript}\n=== FINE TRASCRIZIONE ===`;
 
-      const messages = [...this.chatHistory, { role: 'user', content: userText }];
+      const messages = [
+        ...this.chatHistoryManager.getHistory().map(x => {
+          x.role,
+          x.content
+        }), 
+        { role: 'user', content: userText }
+      ];
 
-      this.transcriptManager.addTranscriptEntry(Date.now(), 'user', userText);
+      this.transcriptManager.addTranscriptEntry(Date.now(), 'user-text', userText);
       if(process.env.SKIP_LLM === 'true') {
         resolve('SKIPPED LLM');
         return;
@@ -57,8 +64,8 @@ class ClaudeClient {
       
       const reply = response.content[0].text;
       
-      this.chatHistory.push({ role: 'user', content: userText });
-      this.chatHistory.push({ role: 'assistant', content: reply });
+      this.chatHistoryManager.addMessage('user', userText);
+      this.chatHistoryManager.addMessage('assistant', reply);
       this.transcriptManager.addTranscriptEntry(Date.now(), 'assistant', reply);
 
       resolve(reply);

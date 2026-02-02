@@ -100,12 +100,11 @@ async function startApp() {
         if(process.env.SKIP_LLM !== 'true') {
           const recap = await aiClient.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
           console.log(`\nMeeting Recap: ${recap}\n`);
-          // save recap to file
-          fs.writeFileSync(`meetings/${Date.now()}-meeting-recap.md`, recap);
+          fs.writeFileSync(`meetings/${(new Date()).toISOString().slice(0, 16).replace(':', '')}-meeting-recap.md`, recap);
         }
 
         // save transcript to file
-        fs.writeFileSync(`meetings/${Date.now()}-meeting-transcript.txt`, transcriptManager.getTranscript());
+        fs.writeFileSync(`meetings/${(new Date()).toISOString().slice(0, 16).replace(':', '')}-meeting-transcript.txt`, transcriptManager.getTranscript());
         shutdown();
         return;
       }
