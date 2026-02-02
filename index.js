@@ -2,19 +2,17 @@ require('dotenv').config();
 const readline = require('readline');
 const AudioCapture = require('./audio-capture');
 const TranscriptionService = require('./transcription');
+const TranscriptManager = require('./transcript-manager');
 const ClaudeClient = require('./claude-client');
 const fs = require('fs');
 
 // Configuration
 const SAMPLE_RATE = 16000;
 const CONFIDENCE_THRESHOLD = 0.85; // requirement: > 0.85
-
-// Initialize clients
 const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
-const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 
-if (!deepgramApiKey || !anthropicApiKey) {
-  console.error('Error: DEEPGRAM_API_KEY and ANTHROPIC_API_KEY must be set in .env');
+if (!deepgramApiKey) {
+  console.error('Error: DEEPGRAM_API_KEY must be set in .env');
   process.exit(1);
 }
 
@@ -28,7 +26,8 @@ const sysCapture = new AudioCapture({
 });
 const micTranscription = new TranscriptionService(deepgramApiKey);
 const sysTranscription = new TranscriptionService(deepgramApiKey);
-const claude = new ClaudeClient(anthropicApiKey);
+const transcriptManager = new TranscriptManager();
+const aiClient = new ClaudeClient(transcriptManager);
 
 // Setup Readline for Terminal UI
 const rl = readline.createInterface({
@@ -43,7 +42,7 @@ console.log('Initializing audio and transcription...');
 micTranscription.on('transcription', (evt) => {
   if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
     console.log(`[user]: ${evt.text}`);
-    claude.addTranscriptEntry({ source: 'user', text: evt.text, confidence: evt.confidence, timestamp: evt.timestamp });
+    transcriptManager.addTranscriptEntry(evt.timestamp, 'user', evt.text, evt.confidence);
     rl.prompt(true);
   }
 });
@@ -51,7 +50,7 @@ sysTranscription.on('transcription', (evt) => {
   if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
     var source = evt.speaker ?? 'unknown caller';
     console.log(`[${source}]: ${evt.text}`);
-    claude.addTranscriptEntry({ source: source, text: evt.text, confidence: evt.confidence, timestamp: evt.timestamp });
+    transcriptManager.addTranscriptEntry(evt.timestamp, source, evt.text, evt.confidence);
     rl.prompt(true);
   }
 });
@@ -99,21 +98,21 @@ async function startApp() {
       
       if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
         if(process.env.SKIP_LLM !== 'true') {
-          const recap = await claude.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
+          const recap = await aiClient.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
           console.log(`\nMeeting Recap: ${recap}\n`);
           // save recap to file
           fs.writeFileSync(`meetings/${Date.now()}-meeting-recap.md`, recap);
         }
 
         // save transcript to file
-        fs.writeFileSync(`meetings/${Date.now()}-meeting-transcript.txt`, claude.getTranscript());
+        fs.writeFileSync(`meetings/${Date.now()}-meeting-transcript.txt`, transcriptManager.getTranscript());
         shutdown();
         return;
       }
 
       if (input.toLowerCase() === 'history') {
         console.log('\n--- Meeting History ---');
-        console.log(claude.getTranscript());
+        console.log(transcriptManager.getTranscript());
         console.log('------------------------\n');
         rl.prompt();
         return;
@@ -122,7 +121,7 @@ async function startApp() {
       if (input) {
         process.stdout.write('Claude is thinking...\n');
         try {
-          const response = await claude.query(input);
+          const response = await aiClient.query(input);
           console.log(`\nClaude: ${response}\n`);
         } catch (err) {
           console.error(`\nError querying Claude: ${err.message}\n`);
