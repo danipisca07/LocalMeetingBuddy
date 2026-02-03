@@ -57,7 +57,7 @@ class ClaudeClient {
       }
       const response = await this.anthropic.messages.create({
         model: process.env.CLAUDE_MODEL_ID,
-        max_tokens: process.env.CLAUDE_MAX_TOKENS || 1024,
+        max_tokens: parseInt(process.env.CLAUDE_MAX_TOKENS, 10) || 1024,
         system: dynamicSystemPrompt,
         messages
       });

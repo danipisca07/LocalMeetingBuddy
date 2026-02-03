@@ -57,7 +57,7 @@ class GroqClient {
       const response = await this.groq.chat.completions.create({
         messages: messages,
         model: process.env.GROQ_MODEL_ID || "llama3-8b-8192",
-        max_tokens: process.env.GROQ_MAX_TOKENS || 1024,
+        max_tokens: parseInt(process.env.GROQ_MAX_TOKENS, 10) || 1024,
       });
       
       const reply = response.choices[0]?.message?.content || "";
