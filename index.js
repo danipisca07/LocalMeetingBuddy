@@ -28,8 +28,19 @@ const sysCapture = new AudioCapture({
 const micTranscription = new TranscriptionService(deepgramApiKey);
 const sysTranscription = new TranscriptionService(deepgramApiKey);
 const transcriptManager = new TranscriptManager();
+
+var aiClient
+if(process.env.GROQ_API_KEY) {
+  aiClient = new GroqClient(transcriptManager);
+} else if(process.env.ANTHROPIC_API_KEY) {
+  aiClient = new ClaudeClient(transcriptManager);
+} else {
+  console.error('Error: GROQ_API_KEY or ANTHROPIC_API_KEY must be set in .env');
+  process.exit(1);
+}
+
 //const aiClient = new ClaudeClient(transcriptManager);
-const aiClient = new GroqClient(transcriptManager);
+//const aiClient = new GroqClient(transcriptManager);
 
 // Setup Readline for Terminal UI
 const rl = readline.createInterface({

@@ -10,16 +10,14 @@ try {
   devices.forEach((d, i) => {
     // We are looking for input devices (maxInputChannels > 0)
     if (d.maxInputChannels > 0) {
-      console.log(`\n[${i}] ${d.name}`);
-      console.log(`    ID: ${d.id}`);
-      console.log(`    Input Channels: ${d.maxInputChannels}`);
-      console.log(`    Default Sample Rate: ${d.defaultSampleRate}`);
-      
       // Check for keywords that suggest loopback capability
       const lowerName = d.name.toLowerCase();
-      if (lowerName.includes('loopback') || lowerName.includes('stereo mix')) {
-        console.log('    *** POTENTIAL LOOPBACK DEVICE ***');
+      var loopbackStr = "";
+      if (lowerName.includes('loopback') || lowerName.includes('stereo mix') || lowerName.includes('virtual') || lowerName.includes('vb-audio')) {
+        loopbackStr = "\t  *** POTENTIAL LOOPBACK DEVICE ***";
       }
+
+      console.log(`[${i}] ${d.name} | ID: ${d.id} | Default Sample Rate: ${d.defaultSampleRate} ${loopbackStr}`);
     }
   });
   console.log('\n---------------------------------------------------');
