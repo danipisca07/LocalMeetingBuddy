@@ -1,7 +1,6 @@
 require('dotenv').config();
 const readline = require('readline');
-const AudioCapture = require('./audio-capture');
-const TranscriptionService = require('./transcription');
+const { DeviceManager } = require('./device-manager');
 const TranscriptManager = require('./transcript-manager');
 const ClaudeClient = require('./claude-client');
 const GroqClient = require('./groq-client');
@@ -17,16 +16,25 @@ if (!deepgramApiKey) {
   process.exit(1);
 }
 
-const micCapture = new AudioCapture({ 
-  sampleRate: SAMPLE_RATE,
-  deviceId: process.env.AUDIO_DEVICE_ID_MIC
+// Initialize Device Manager
+const deviceManager = new DeviceManager();
+
+// Add Microphone Device
+deviceManager.addDevice('mic', {
+    deviceId: process.env.AUDIO_DEVICE_ID_MIC,
+    label: 'user',
+    apiKey: deepgramApiKey,
+    sampleRate: SAMPLE_RATE
 });
-const sysCapture = new AudioCapture({ 
-  sampleRate: SAMPLE_RATE,
-  deviceId: process.env.AUDIO_DEVICE_ID_SYSTEM
+
+// Add System Audio Device
+deviceManager.addDevice('sys', {
+    deviceId: process.env.AUDIO_DEVICE_ID_SYSTEM,
+    label: 'caller',
+    apiKey: deepgramApiKey,
+    sampleRate: SAMPLE_RATE
 });
-const micTranscription = new TranscriptionService(deepgramApiKey);
-const sysTranscription = new TranscriptionService(deepgramApiKey);
+
 const transcriptManager = new TranscriptManager();
 
 var aiClient
@@ -39,9 +47,6 @@ if(process.env.GROQ_API_KEY) {
   process.exit(1);
 }
 
-//const aiClient = new ClaudeClient(transcriptManager);
-//const aiClient = new GroqClient(transcriptManager);
-
 // Setup Readline for Terminal UI
 const rl = readline.createInterface({
   input: process.stdin,
@@ -52,57 +57,33 @@ const rl = readline.createInterface({
 console.log('--- MeetingTwin AI Assistant ---');
 console.log('Initializing audio and transcription...');
 
-micTranscription.on('transcription', (evt) => {
-  if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
-    console.log(`[user]: ${evt.text}`);
-    transcriptManager.addTranscriptEntry(evt.timestamp, 'user', evt.text, evt.confidence);
-    rl.prompt(true);
-  }
-});
-sysTranscription.on('transcription', (evt) => {
-  if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
-    var source = evt.speaker ?? 'unknown caller';
-    console.log(`[${source}]: ${evt.text}`);
-    transcriptManager.addTranscriptEntry(evt.timestamp, source, evt.text, evt.confidence);
-    rl.prompt(true);
-  }
+// Handle Transcription Events
+deviceManager.on('transcription', (evt) => {
+    if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
+        // Determine source display name
+        // For 'user' (mic), strictly use 'user'
+        // For 'caller' (sys), use speaker identification from Deepgram or fallback
+        const displaySource = (evt.source === 'user') ? 'user' : (evt.speaker ?? 'unknown caller');
+        
+        console.log(`[${displaySource}]: ${evt.text}`);
+        transcriptManager.addTranscriptEntry(evt.timestamp, displaySource, evt.text, evt.confidence);
+        rl.prompt(true);
+    }
 });
 
-micTranscription.on('connected', () => {
-  micCapture.start();
-});
-sysTranscription.on('connected', () => {
-  sysCapture.start();
+// Handle Device Connection Events (Optional logging)
+deviceManager.on('deviceConnected', (id) => {
+    // console.log(`Device connected: ${id}`);
 });
 
-micTranscription.on('error', (err) => {
-  console.error('Mic transcription error:', err.message);
-});
-sysTranscription.on('error', (err) => {
-  console.error('System transcription error:', err.message);
-});
-
-micCapture.on('audio', (data) => {
-  micTranscription.sendAudio(data);
-});
-sysCapture.on('audio', (data) => {
-  sysTranscription.sendAudio(data);
-});
-
-micCapture.on('error', (err) => {
-  console.error('Mic audio error:', err.message);
-});
-sysCapture.on('error', (err) => {
-  console.error('System audio error:', err.message);
+deviceManager.on('deviceDisconnected', (id) => {
+    // console.log(`Device disconnected: ${id}`);
 });
 
 // Main Loop
 async function startApp() {
   try {
-    micCapture.initialize();
-    sysCapture.initialize();
-    micTranscription.connect(micCapture.sampleRate, 'user');
-    sysTranscription.connect(sysCapture.sampleRate, 'caller');
+    await deviceManager.startAll();
     
     rl.prompt();
 
@@ -159,10 +140,7 @@ async function startApp() {
 
 function shutdown() {
   console.log('\nShutting down gracefully...');
-  micCapture.stop();
-  sysCapture.stop();
-  micTranscription.disconnect();
-  sysTranscription.disconnect();
+  deviceManager.stopAll();
   rl.close();
   process.exit(0);
 }
