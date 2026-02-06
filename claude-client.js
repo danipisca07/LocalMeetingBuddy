@@ -59,7 +59,7 @@ class ClaudeClient {
         model: process.env.CLAUDE_MODEL_ID,
         max_tokens: parseInt(process.env.CLAUDE_MAX_TOKENS, 10) || 1024,
         system: dynamicSystemPrompt,
-        messages
+        messages: messages.filter(m => m != null && m.content.trim() !== '') // Filter out empty messages
       });
       
       const reply = response.content[0].text;
