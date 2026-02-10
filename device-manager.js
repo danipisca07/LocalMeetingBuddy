@@ -16,6 +16,7 @@ class MeetingDevice extends EventEmitter {
     this.maxRetryDelay = 30000;
     this.transcriptionConnected = false;
     this.captureInitialized = false;
+    this._disconnecting = false;
   }
 
   initialize() {
@@ -143,9 +144,10 @@ class MeetingDevice extends EventEmitter {
   _handleDisconnect() {
     if (!this.isExpectedToRun) return;
 
-    // Avoid multiple reconnect schedules
-    if (this.reconnectTimer) return;
+    // Avoid multiple reconnect schedules and recursion
+    if (this.reconnectTimer || this._disconnecting) return;
 
+    this._disconnecting = true;
     this._cleanup();
     this.emit('disconnected');
 
@@ -158,6 +160,7 @@ class MeetingDevice extends EventEmitter {
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      this._disconnecting = false;
       this.retryCount++;
       this._connect();
     }, delay);
