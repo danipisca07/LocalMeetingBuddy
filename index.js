@@ -4,12 +4,14 @@ const { DeviceManager } = require('./device-manager');
 const TranscriptManager = require('./transcript-manager');
 const ClaudeClient = require('./claude-client');
 const GroqClient = require('./groq-client');
+const { determineDisplaySource } = require('./utils');
 const fs = require('fs');
 
 // Configuration
 const SAMPLE_RATE = 16000;
 const CONFIDENCE_THRESHOLD = 0.85; // requirement: > 0.85
 const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
+const isLiveMeeting = process.env.IS_LIVE_MEETING === 'true';
 
 if (!deepgramApiKey) {
   console.error('Error: DEEPGRAM_API_KEY must be set in .env');
@@ -22,7 +24,7 @@ const deviceManager = new DeviceManager();
 // Add Microphone Device
 deviceManager.addDevice('mic', {
     deviceId: process.env.AUDIO_DEVICE_ID_MIC,
-    label: 'user',
+    label: isLiveMeeting ? 'live' : 'user',
     apiKey: deepgramApiKey,
     sampleRate: SAMPLE_RATE
 });
@@ -61,9 +63,7 @@ console.log('Initializing audio and transcription...');
 deviceManager.on('transcription', (evt) => {
     if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
         // Determine source display name
-        // For 'user' (mic), strictly use 'user'
-        // For 'caller' (sys), use speaker identification from Deepgram or fallback
-        const displaySource = (evt.source === 'user') ? 'user' : (evt.speaker ?? 'unknown caller');
+        const displaySource = determineDisplaySource(isLiveMeeting, evt.source, evt.speaker);
         
         console.log(`[${displaySource}]: ${evt.text}`);
         transcriptManager.addTranscriptEntry(evt.timestamp, displaySource, evt.text, evt.confidence);
