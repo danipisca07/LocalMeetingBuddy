@@ -17,6 +17,7 @@
     "dotenv": "^17.2.3",
     "groq-sdk": "^0.37.0",
     "naudiodon": "^2.3.6",
+    "sherpa-onnx-node": "^1.13.2",
     "ws": "^8.19.0"
   },
   "devDependencies": {

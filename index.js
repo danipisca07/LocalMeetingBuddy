@@ -9,11 +9,12 @@ const fs = require('fs');
 // Configuration
 const SAMPLE_RATE = 16000;
 const CONFIDENCE_THRESHOLD = 0.85; // requirement: > 0.85
+const transcriptionProvider = (process.env.TRANSCRIPTION_PROVIDER || 'deepgram').toLowerCase();
 const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
 const isLiveMeeting = process.env.IS_LIVE_MEETING === 'true';
 
-if (!deepgramApiKey) {
-  console.error('Error: DEEPGRAM_API_KEY must be set in .env');
+if (transcriptionProvider === 'deepgram' && !deepgramApiKey) {
+  console.error('Error: DEEPGRAM_API_KEY must be set in .env (or set TRANSCRIPTION_PROVIDER=local)');
   process.exit(1);
 }
 

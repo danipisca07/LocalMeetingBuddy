@@ -63,6 +63,21 @@ Open `.env` in your text editor and fill in your API keys:
 
 (change model if needed)
 
+#### Local transcription (no cloud, no API key)
+
+Set `TRANSCRIPTION_PROVIDER=local` to run transcription fully on-device using Whisper
+(via [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)) with voice-activity detection
+and speaker diarization. Works on Windows, Linux and macOS; no Deepgram key required.
+
+- On first start the required models (~200 MB with the default `base` Whisper model) are
+  downloaded automatically to `~/.meetingtwin/models` (override with `LOCAL_TRANSCRIPTION_MODELS_DIR`).
+- `LOCAL_WHISPER_MODEL` selects the Whisper size (`tiny`/`base`/`small`/`medium`):
+  bigger models transcribe Italian better but are slower on CPU.
+- `LOCAL_SPEAKER_THRESHOLD` tunes speaker diarization (lower = more utterances merged
+  into the same speaker).
+- Transcripts are emitted per utterance (after ~1s of silence) instead of word-by-word;
+  expect slightly higher latency than Deepgram in exchange for full privacy.
+
 ### 3. Audio Device Configuration
 
 You need to tell MeetingTwin which audio devices to listen to.
