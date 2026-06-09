@@ -2,8 +2,7 @@ require('dotenv').config();
 const readline = require('readline');
 const { DeviceManager } = require('./src/device-manager');
 const TranscriptManager = require('./src/transcript-manager');
-const ClaudeClient = require('./src/claude-client');
-const GroqClient = require('./src/groq-client');
+const { createAIService } = require('./src/ai');
 const { determineDisplaySource } = require('./src/utils');
 const fs = require('fs');
 
@@ -39,15 +38,7 @@ deviceManager.addDevice('sys', {
 
 const transcriptManager = new TranscriptManager();
 
-var aiClient
-if(process.env.GROQ_API_KEY) {
-  aiClient = new GroqClient(transcriptManager);
-} else if(process.env.ANTHROPIC_API_KEY) {
-  aiClient = new ClaudeClient(transcriptManager);
-} else {
-  console.error('Error: GROQ_API_KEY or ANTHROPIC_API_KEY must be set in .env');
-  process.exit(1);
-}
+const aiClient = createAIService(transcriptManager);
 
 // Setup Readline for Terminal UI
 const rl = readline.createInterface({

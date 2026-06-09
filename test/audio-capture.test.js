@@ -48,7 +48,7 @@ require.cache[naudiodonPath] = {
 };
 
 // Now we can require AudioCapture normally
-const AudioCapture = require('../audio-capture');
+const AudioCapture = require('../src/audio-capture');
 
 describe('AudioCapture Component', () => {
   let audioCapture;

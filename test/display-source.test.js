@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { determineDisplaySource } = require('../utils');
+const { determineDisplaySource } = require('../src/utils');
 
 console.log('Running tests for determineDisplaySource...');
 

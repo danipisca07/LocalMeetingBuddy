@@ -29,13 +29,8 @@ class AudioCaptureMock extends require('events').EventEmitter {
   }
 }
 
-// Manually mock the require cache for AudioCapture and TranscriptionService
-const audioCapturePath = require.resolve('../audio-capture');
-const transcriptionPath = require.resolve('../transcription');
-
-const originalAudioCapture = require.cache[audioCapturePath];
-const originalTranscription = require.cache[transcriptionPath];
-
+// Mock AudioCapture via require.cache (it is a plain CommonJS module).
+const audioCapturePath = require.resolve('../src/audio-capture');
 require.cache[audioCapturePath] = {
   id: audioCapturePath,
   filename: audioCapturePath,
@@ -43,15 +38,12 @@ require.cache[audioCapturePath] = {
   exports: AudioCaptureMock
 };
 
-require.cache[transcriptionPath] = {
-  id: transcriptionPath,
-  filename: transcriptionPath,
-  loaded: true,
-  exports: MockTranscriptionService
-};
+// The transcription provider now lives in an ES module, so instead of swapping it
+// through require.cache we inject a mock factory via each device's config (DI).
+const mockTranscriptionFactory = (apiKey) => new MockTranscriptionService(apiKey);
 
 // Now load DeviceManager
-const { DeviceManager, MeetingDevice } = require('../device-manager');
+const { DeviceManager, MeetingDevice } = require('../src/device-manager');
 
 describe('DeviceManager Component', () => {
   let deviceManager;
@@ -69,7 +61,8 @@ describe('DeviceManager Component', () => {
       deviceId: '1',
       label: 'user',
       apiKey: 'test-key',
-      sampleRate: 16000
+      sampleRate: 16000,
+      createTranscription: mockTranscriptionFactory
     });
 
     assert.ok(device instanceof MeetingDevice);
@@ -96,7 +89,8 @@ describe('DeviceManager Component', () => {
       deviceId: '1',
       label: 'user',
       apiKey: 'test-key',
-      sampleRate: 16000
+      sampleRate: 16000,
+      createTranscription: mockTranscriptionFactory
     });
 
     await deviceManager.startAll();
@@ -117,7 +111,8 @@ describe('DeviceManager Component', () => {
     const device = deviceManager.addDevice('mic', {
       deviceId: '1',
       label: 'user',
-      apiKey: 'test-key'
+      apiKey: 'test-key',
+      createTranscription: mockTranscriptionFactory
     });
 
     deviceManager.on('transcription', (evt) => {
@@ -135,7 +130,8 @@ describe('DeviceManager Component', () => {
     const device = deviceManager.addDevice('mic', {
       deviceId: '1',
       label: 'user',
-      apiKey: 'test-key'
+      apiKey: 'test-key',
+      createTranscription: mockTranscriptionFactory
     });
     
     // Override retry delay for test speed
@@ -166,7 +162,8 @@ describe('DeviceManager Component', () => {
     const device = deviceManager.addDevice('mic', {
       deviceId: '1',
       label: 'user',
-      apiKey: 'test-key'
+      apiKey: 'test-key',
+      createTranscription: mockTranscriptionFactory
     });
 
     device.start();

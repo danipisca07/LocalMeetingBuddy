@@ -1,6 +1,6 @@
 const EventEmitter = require('events');
 const AudioCapture = require('./audio-capture');
-const TranscriptionService = require('./transcription');
+const { createTranscriptionService } = require('./transcription');
 
 class MeetingDevice extends EventEmitter {
   constructor(config) {
@@ -31,7 +31,10 @@ class MeetingDevice extends EventEmitter {
       deviceId: this.config.deviceId
     });
 
-    this.transcription = new TranscriptionService(this.config.apiKey);
+    // Transcription provider is pluggable: a `createTranscription` factory can be
+    // injected via config (used by tests / alternative providers); defaults to Deepgram.
+    const createTranscription = this.config.createTranscription || createTranscriptionService;
+    this.transcription = createTranscription(this.config.apiKey);
     
     this._setupEventHandlers();
     return true;
