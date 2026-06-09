@@ -1,10 +1,10 @@
 require('dotenv').config();
 const readline = require('readline');
-const { DeviceManager } = require('./device-manager');
-const TranscriptManager = require('./transcript-manager');
-const ClaudeClient = require('./claude-client');
-const GroqClient = require('./groq-client');
-const { determineDisplaySource } = require('./utils');
+const { DeviceManager } = require('./src/device-manager');
+const TranscriptManager = require('./src/transcript-manager');
+const ClaudeClient = require('./src/claude-client');
+const GroqClient = require('./src/groq-client');
+const { determineDisplaySource } = require('./src/utils');
 const fs = require('fs');
 
 // Configuration
