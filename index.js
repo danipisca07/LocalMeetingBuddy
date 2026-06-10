@@ -4,6 +4,7 @@ const { DeviceManager } = require('./src/device-manager');
 const TranscriptManager = require('./src/transcript-manager');
 const { createAIService } = require('./src/ai');
 const { determineDisplaySource } = require('./src/utils');
+const { saveMeetingOutputs } = require('./src/meeting-output');
 const fs = require('fs');
 
 // Configuration
@@ -83,22 +84,11 @@ async function startApp() {
       const input = line.trim();
       
       if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
-        try {
-          // save transcript to file
-          fs.writeFileSync(`meetings/${(new Date()).toISOString().slice(0, 16).replace(':', '')}-meeting-transcript.txt`, transcriptManager.getTranscript());
-        } catch (err) {
-          console.error(`\nError saving transcript: ${err.message}\n`);
-        }
-        
-        if(process.env.SKIP_LLM !== 'true') {
-          try {
-            const recap = await aiClient.query('Crea un recap del meeting in italiano. Formatta l\'output in Markdown.');
-            console.log(`\nMeeting Recap: ${recap}\n`);
-            fs.writeFileSync(`meetings/${(new Date()).toISOString().slice(0, 16).replace(':', '')}-meeting-recap.md`, recap);
-          } catch (err) {
-            console.error(`\nError generating meeting recap: ${err.message}\n`);
-          }
-        }
+        const prefix = (new Date()).toISOString().slice(0, 16).replace(':', '');
+        await saveMeetingOutputs(transcriptManager, aiClient, {
+          prefix,
+          skipLlm: process.env.SKIP_LLM === 'true',
+        });
 
         shutdown();
         return;

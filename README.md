@@ -113,7 +113,7 @@ You need to tell MeetingTwin which audio devices to listen to.
 By default, the application is set up to use **Groq** if the api key are provided.
 Switch to **Claude** if it's api keys are provided instead.
 
-## Usage
+## Usage (live meeting)
 
 Once configured, start the application:
 
@@ -144,4 +144,58 @@ The system automatically labels audio from your microphone as **User** and audio
 At the end of the meeting the agent will produce two files in the meeting directory:
 
 * `<data>-meeting-transcript.txt`: A text file containing the full transcript of the meeting.
-* `<data>-meeting-recap.md`: A markdown file with a summary of the meeting. 
+* `<data>-meeting-recap.md`: A markdown file with a summary of the meeting.
+
+## Transcribe from a recorded file (offline)
+
+Instead of listening to a live meeting, you can run the **same** transcription +
+diarization + recap pipeline on a pre-recorded **audio or video file** (mp4, mkv, mp3,
+m4a, wav, …). This is a batch, command-line tool — no audio device or loopback driver
+needed.
+
+Decoding is handled by a bundled copy of **ffmpeg**, so no system install is required.
+
+### Usage
+
+```bash
+node scripts/transcribe-file.js <input-file> [options]
+```
+
+Options:
+
+| Option              | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| `--provider <type>` | Select the transcription service:  local or deepgram               |
+| `--out <dir>`       | Output directory (default: `meetings`).                            |
+| `--track <n>`       | Transcribe only audio stream `n` (default: all tracks diarized).   |
+| `--skip-llm`        | Write the transcript only; skip the LLM recap (no LLM key needed). |
+| `-h`, `--help`      | Show usage.                                                        |
+
+Examples:
+
+```bash
+# Local Whisper provider (offline, no API key)
+node scripts/transcribe-file.js recordings/standup.mp4 --provider local
+
+# Deepgram batch API, transcript only
+node scripts/transcribe-file.js call.m4a --provider deepgram --skip-llm
+```
+
+The script reads the **same** configuration as the live app (`TRANSCRIPTION_PROVIDER`,
+`LOCAL_*`, `DEEPGRAM_*`, and the LLM keys/models in `.env`); no new variables are required.
+
+### Behavior
+
+* **Every audio track** in the file is transcribed and diarized independently. A single
+  mixed track is split into speakers automatically (`speaker-0`, `speaker-1`, …); a file
+  with multiple audio tracks labels each one (`track0-0`, `track1-0`, …) and interleaves
+  the utterances chronologically.
+* Large files are decoded into memory (~115 MB per hour of audio per track).
+
+### Outputs
+
+Two files are written to the output directory, prefixed with the input file name (so
+multiple files don't collide):
+
+* `<name>-meeting-transcript.txt`: the full transcript.
+* `<name>-meeting-recap.md`: the LLM summary (omitted with `--skip-llm`).

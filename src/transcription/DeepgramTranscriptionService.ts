@@ -1,6 +1,11 @@
 import { EventEmitter } from 'events';
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
-import type { TranscriptionEvent, TranscriptionService } from './TranscriptionService.ts';
+import type {
+  BatchTranscribeOptions,
+  TranscriptionEvent,
+  TranscriptionService,
+} from './TranscriptionService.ts';
+import { pcmToWav } from './wav.ts';
 
 type LiveConnection = ReturnType<ReturnType<typeof createClient>['listen']['live']>;
 
@@ -121,5 +126,63 @@ export class DeepgramTranscriptionService extends EventEmitter implements Transc
       clearInterval(this.keepAliveInterval);
       this.keepAliveInterval = null;
     }
+  }
+
+  /**
+   * One-shot batch transcription via Deepgram's pre-recorded REST API
+   */
+  async transcribeBatch(audio: Buffer, opts: BatchTranscribeOptions = {}): Promise<void> {
+    const sampleRate = opts.sampleRate ?? 16000;
+    const source = opts.source ?? null;
+    const base = opts.baseTimestamp ?? Date.now();
+    const language = process.env.DEEPGRAM_LANGUAGE || 'it';
+
+    const wav = pcmToWav(audio, sampleRate, 1);
+
+    const { result, error } = await this.client.listen.prerecorded.transcribeFile(wav, {
+      model: 'nova-2',
+      language,
+      smart_format: true,
+      punctuate: true,
+      diarize: true,
+    });
+
+    if (error) throw error;
+
+    const alternative = result?.results?.channels?.[0]?.alternatives?.[0];
+    if (!alternative || !alternative.transcript) return;
+
+    const confidence = alternative.confidence;
+    const words = alternative.words || [];
+
+    interface BatchPhrase {
+      speaker?: number;
+      words: string[];
+      start: number;
+    }
+
+    // Join consecutive words from the same speaker into phrases,
+    // keeping each phrase's start time for the timestamp.
+    const phrases = words.reduce<BatchPhrase[]>((acc, cur) => {
+      const last = acc[acc.length - 1];
+      const text = cur.punctuated_word || cur.word;
+      if (!last || last.speaker !== cur.speaker) {
+        acc.push({ speaker: cur.speaker, words: [text], start: cur.start });
+      } else {
+        last.words.push(text);
+      }
+      return acc;
+    }, []);
+
+    phrases.forEach((phrase) => {
+      const evt: TranscriptionEvent = {
+        text: phrase.words.join(' '),
+        speaker: phrase.speaker,
+        confidence,
+        timestamp: base + Math.round(phrase.start * 1000),
+        source,
+      };
+      this.emit('transcription', evt);
+    });
   }
 }

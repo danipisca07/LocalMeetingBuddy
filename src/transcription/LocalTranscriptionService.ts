@@ -1,5 +1,9 @@
 import { EventEmitter } from 'events';
-import type { TranscriptionEvent, TranscriptionService } from './TranscriptionService.ts';
+import type {
+  BatchTranscribeOptions,
+  TranscriptionEvent,
+  TranscriptionService,
+} from './TranscriptionService.ts';
 import type { LocalBackend, VadLike } from './local/local-backend.ts';
 import { getSharedBackend, PIPELINE_SAMPLE_RATE } from './local/local-backend.ts';
 import { SpeakerClusterer } from './local/SpeakerClusterer.ts';
@@ -28,6 +32,10 @@ export class LocalTranscriptionService extends EventEmitter implements Transcrip
   private pending = new Float32Array(0); // leftover samples < one VAD window
   // Per-instance FIFO so utterances are emitted in the order they were spoken.
   private segmentQueue: Promise<void> = Promise.resolve();
+  // When set (batch mode), utterance timestamps are baseTimestamp + in-clip
+  // offset (derived from the VAD-reported start sample); otherwise (live
+  // streaming) they default to Date.now().
+  private baseTimestamp: number | null = null;
 
   constructor(backend: LocalBackend = getSharedBackend()) {
     super();
@@ -92,15 +100,50 @@ export class LocalTranscriptionService extends EventEmitter implements Transcrip
     if (wasConnected) this.emit('disconnected');
   }
 
+  /**
+   * One-shot transcription of a whole pre-recorded clip. Local inference is
+   * CPU-bound and offline, so "feed everything, then flush" already is batch
+   * processing — no pacing needed. Emits the same 'transcription' events as the
+   * streaming path and resolves once every utterance has been processed.
+   */
+  async transcribeBatch(audio: Buffer, opts: BatchTranscribeOptions = {}): Promise<void> {
+    this.source = opts.source ?? null;
+    this.inputSampleRate = opts.sampleRate ?? PIPELINE_SAMPLE_RATE;
+    this.baseTimestamp = opts.baseTimestamp ?? Date.now();
+
+    await this.backend.init();
+    this.vad = this.backend.createVad();
+    this.pending = new Float32Array(0);
+    this.clusterer.reset();
+    this.connected = true;
+
+    // Feed the entire clip through the same windowing as live streaming, then
+    // flush so the trailing speech segment is emitted too.
+    this.sendAudio(audio);
+    this.vad.flush();
+    this.drainSegments();
+
+    // Wait for every queued segment to finish transcribing/diarizing.
+    await this.segmentQueue;
+
+    this.connected = false;
+    this.vad = null;
+    this.pending = new Float32Array(0);
+    this.baseTimestamp = null;
+  }
+
   private drainSegments(): void {
     if (!this.vad) return;
     while (!this.vad.isEmpty()) {
       const segment = this.vad.front();
       this.vad.pop();
+      // `start` is the segment's sample index in the fed stream; capture it
+      // before pop() so batch timestamps reflect real in-clip position.
+      const startSample = segment.start;
       // Copy: the segment buffer may be reused by the native layer.
       const samples = Float32Array.from(segment.samples);
       this.segmentQueue = this.segmentQueue
-        .then(() => this.processSegment(samples))
+        .then(() => this.processSegment(samples, startSample))
         .catch((err: Error) => {
           console.error('[local-transcription] Segment processing error:', err.message);
           this.emit('error', err);
@@ -108,7 +151,7 @@ export class LocalTranscriptionService extends EventEmitter implements Transcrip
     }
   }
 
-  private async processSegment(samples: Float32Array): Promise<void> {
+  private async processSegment(samples: Float32Array, startSample: number): Promise<void> {
     const text = await this.backend.transcribe(samples);
     if (!text) return;
 
@@ -118,11 +161,15 @@ export class LocalTranscriptionService extends EventEmitter implements Transcrip
     }
     const speaker = this.clusterer.assign(embedding);
 
+    const timestamp = this.baseTimestamp === null
+      ? Date.now()
+      : this.baseTimestamp + Math.round((startSample / PIPELINE_SAMPLE_RATE) * 1000);
+
     const evt: TranscriptionEvent = {
       text,
       speaker,
       confidence: FIXED_CONFIDENCE,
-      timestamp: Date.now(),
+      timestamp,
       source: this.source,
     };
     this.emit('transcription', evt);

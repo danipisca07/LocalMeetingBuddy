@@ -164,4 +164,25 @@ describe('LocalTranscriptionService', () => {
     service.disconnect();
     assert.strictEqual(emitted, false);
   });
+
+  it('transcribeBatch emits utterances with base + in-clip offset timestamps', async () => {
+    // Seed the VAD (created inside transcribeBatch) with a segment 1s into the clip.
+    const origCreateVad = backend.createVad.bind(backend);
+    backend.createVad = () => {
+      const vad = origCreateVad();
+      vad.segments.push({ start: 16000, samples: new Float32Array(SEGMENT_SAMPLES) }); // 1.0s offset
+      return vad;
+    };
+    backend.transcribeResults.push('ciao a tutti');
+
+    const events = [];
+    service.on('transcription', (e) => events.push(e));
+    await service.transcribeBatch(Buffer.alloc(2048), { source: 'track0', baseTimestamp: 1000 });
+
+    assert.strictEqual(events.length, 1);
+    assert.strictEqual(events[0].text, 'ciao a tutti');
+    assert.strictEqual(events[0].source, 'track0');
+    assert.strictEqual(events[0].speaker, 0);
+    assert.strictEqual(events[0].timestamp, 2000); // 1000 base + 1000ms offset
+  });
 });
