@@ -648,6 +648,180 @@ header h1 {
   line-height: 1.4;
 }
 
+/* Meeting History Styles */
+.meeting-history {
+  display: flex;
+  gap: 1rem;
+  height: 100%;
+  overflow: hidden;
+}
+
+.history-list-panel {
+  flex: 0 0 350px;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--light-bg);
+}
+
+.history-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--dark-text);
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-item {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.history-item:hover {
+  background-color: var(--light-bg);
+}
+
+.history-item.active {
+  background-color: #e3f2fd;
+  border-left: 4px solid var(--secondary-color);
+  padding-left: calc(1rem - 4px);
+}
+
+.history-item-title {
+  font-weight: 600;
+  color: var(--dark-text);
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+}
+
+.history-item-meta {
+  font-size: 0.85rem;
+  color: var(--light-text);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.history-item-icons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+}
+
+.history-item-icon {
+  display: inline-block;
+}
+
+/* History Viewer Panel */
+.history-viewer-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.viewer-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--light-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.viewer-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--dark-text);
+}
+
+.viewer-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.viewer-tab-button {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--light-text);
+  transition: all 0.2s;
+}
+
+.viewer-tab-button:hover:not(:disabled) {
+  color: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+.viewer-tab-button.active {
+  background-color: var(--secondary-color);
+  color: white;
+  border-color: var(--secondary-color);
+}
+
+.viewer-tab-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: var(--light-text);
+}
+
+.viewer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.viewer-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--light-text);
+  font-style: italic;
+}
+
+.viewer-content pre {
+  background-color: var(--light-bg);
+  padding: 1rem;
+  border-radius: 6px;
+  overflow: auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--dark-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   header {
@@ -686,5 +860,18 @@ header h1 {
 
   .btn-secondary {
     align-self: flex-start;
+  }
+
+  .meeting-history {
+    flex-direction: column;
+  }
+
+  .history-list-panel {
+    flex: 0 0 200px;
+    max-height: 250px;
+  }
+
+  .history-viewer-panel {
+    flex: 1;
   }
 }

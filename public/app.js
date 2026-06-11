@@ -753,12 +753,262 @@ function initializeConfiguration() {
   loadDevices();
 }
 
+// Phase 4: Meeting History State
+let currentHistoryMeeting = null;
+let currentHistoryView = 'transcript';
+
+/**
+ * Load and display the list of meetings
+ */
+async function loadHistoryList() {
+  try {
+    const response = await fetch('/api/meetings');
+    if (!response.ok) {
+      console.error('Failed to load meetings:', response.statusText);
+      return;
+    }
+
+    const meetings = await response.json();
+    populateHistoryList(meetings);
+  } catch (err) {
+    console.error('Error loading meetings:', err);
+  }
+}
+
+/**
+ * Populate the history list UI
+ */
+function populateHistoryList(meetings) {
+  const listContainer = document.getElementById('history-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '';
+
+  if (meetings.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'viewer-placeholder';
+    empty.textContent = 'Nessun meeting salvato';
+    listContainer.appendChild(empty);
+    return;
+  }
+
+  for (const meeting of meetings) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    if (currentHistoryMeeting === meeting.prefix) {
+      item.classList.add('active');
+    }
+
+    // Format date from mtimeMs using Italian locale
+    const date = new Date(meeting.mtimeMs);
+    const dateStr = date.toLocaleString('it-IT', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    // Format size
+    const sizeKb = Math.round(meeting.sizeBytes / 1024);
+    const sizeStr = sizeKb > 0 ? `${sizeKb} KB` : '0 KB';
+
+    // Create title
+    const title = document.createElement('div');
+    title.className = 'history-item-title';
+    title.textContent = meeting.prefix;
+
+    // Create metadata
+    const meta = document.createElement('div');
+    meta.className = 'history-item-meta';
+    meta.textContent = `${dateStr}  •  ${sizeStr}`;
+
+    // Create icons
+    const icons = document.createElement('div');
+    icons.className = 'history-item-icons';
+
+    if (meeting.hasTranscript) {
+      const transcriptIcon = document.createElement('span');
+      transcriptIcon.className = 'history-item-icon';
+      transcriptIcon.textContent = '📄';
+      transcriptIcon.title = 'Transcript disponibile';
+      icons.appendChild(transcriptIcon);
+    }
+
+    if (meeting.hasRecap) {
+      const recapIcon = document.createElement('span');
+      recapIcon.className = 'history-item-icon';
+      recapIcon.textContent = '📝';
+      recapIcon.title = 'Recap disponibile';
+      icons.appendChild(recapIcon);
+    }
+
+    item.appendChild(title);
+    item.appendChild(meta);
+    item.appendChild(icons);
+
+    item.addEventListener('click', () => {
+      handleSelectMeeting(meeting.prefix);
+    });
+
+    listContainer.appendChild(item);
+  }
+}
+
+/**
+ * Handle selecting a meeting from the list
+ */
+async function handleSelectMeeting(prefix) {
+  try {
+    const response = await fetch(`/api/meetings/${encodeURIComponent(prefix)}`);
+    if (!response.ok) {
+      console.error('Failed to load meeting:', response.statusText);
+      return;
+    }
+
+    const meeting = await response.json();
+    currentHistoryMeeting = prefix;
+    currentHistoryView = 'transcript';
+
+    // Update UI
+    const listItems = document.querySelectorAll('.history-item');
+    listItems.forEach(item => {
+      item.classList.remove('active');
+    });
+    event.currentTarget?.classList.add('active');
+
+    // Update viewer header
+    const viewerTitle = document.getElementById('viewer-title');
+    if (viewerTitle) {
+      viewerTitle.textContent = prefix;
+    }
+
+    // Show/enable tabs
+    const viewerTabs = document.getElementById('viewer-tabs');
+    if (viewerTabs) {
+      viewerTabs.style.display = 'flex';
+    }
+
+    const recapButton = document.getElementById('btn-recap-tab');
+    if (recapButton) {
+      recapButton.disabled = meeting.recap === null;
+    }
+
+    // Display content
+    displayHistoryContent(meeting.transcript, meeting.recap);
+  } catch (err) {
+    console.error('Error loading meeting:', err);
+  }
+}
+
+/**
+ * Display transcript or recap in the viewer
+ */
+function displayHistoryContent(transcript, recap) {
+  const content = document.getElementById('viewer-content');
+  if (!content) return;
+
+  let text = '';
+  if (currentHistoryView === 'transcript') {
+    text = transcript || '';
+  } else if (currentHistoryView === 'recap') {
+    text = recap || '';
+  }
+
+  content.innerHTML = '';
+  const pre = document.createElement('pre');
+  pre.textContent = text;
+  content.appendChild(pre);
+}
+
+/**
+ * Handle viewer tab button clicks
+ */
+function handleViewerTabClick(event) {
+  const viewButton = event.currentTarget;
+  const view = viewButton.getAttribute('data-view');
+
+  // Update active tab
+  const tabButtons = document.querySelectorAll('.viewer-tab-button');
+  tabButtons.forEach(btn => {
+    btn.classList.remove('active');
+  });
+  viewButton.classList.add('active');
+
+  // Update current view and refresh content
+  currentHistoryView = view;
+
+  if (currentHistoryMeeting) {
+    // Fetch and redisplay
+    fetch(`/api/meetings/${encodeURIComponent(currentHistoryMeeting)}`)
+      .then(res => res.json())
+      .then(meeting => {
+        displayHistoryContent(meeting.transcript, meeting.recap);
+      })
+      .catch(err => console.error('Error refreshing content:', err));
+  }
+}
+
+/**
+ * Initialize Phase 4: Meeting History
+ */
+function initializeHistory() {
+  const btnRefresh = document.getElementById('btn-refresh-history');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', loadHistoryList);
+  }
+
+  const tabButtons = document.querySelectorAll('.viewer-tab-button');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', handleViewerTabClick);
+  });
+
+  // Load initial history list
+  loadHistoryList();
+}
+
+/**
+ * Handle WS message to refresh history on meeting stop
+ */
+function setupHistoryAutoRefresh() {
+  // Wrap existing 'status' handler to also refresh history
+  const originalStatusHandler = wsClient.handlers['status'];
+  wsClient.registerHandler('status', (data) => {
+    // Call original handler first
+    if (originalStatusHandler) {
+      originalStatusHandler(data);
+    }
+
+    // Refresh history list if a meeting stopped
+    if (data.state === 'stopped') {
+      loadHistoryList();
+    }
+  });
+
+  // Wrap existing 'batch-progress' handler to also refresh history
+  const originalBatchHandler = wsClient.handlers['batch-progress'];
+  wsClient.registerHandler('batch-progress', (data) => {
+    // Call original handler first
+    if (originalBatchHandler) {
+      originalBatchHandler(data);
+    }
+
+    // Refresh history list if batch is done
+    if (data.state === 'done') {
+      loadHistoryList();
+    }
+  });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initializeTabs();
   initializeLiveMeeting();
   initializeBatchTranscription();
   initializeConfiguration();
+  initializeHistory();
+  setupHistoryAutoRefresh();
 
   // On connection, request current transcript
   setTimeout(() => {

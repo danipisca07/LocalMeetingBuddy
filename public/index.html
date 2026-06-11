@@ -243,8 +243,31 @@
 
       <!-- History Tab -->
       <section id="tab-history" class="tab-pane">
-        <div class="placeholder">
-          <p>Disponibile nella fase 4</p>
+        <div class="meeting-history">
+          <!-- Meeting List Panel -->
+          <div class="history-list-panel">
+            <div class="history-header">
+              <h3>Meeting salvati</h3>
+              <button id="btn-refresh-history" class="btn btn-secondary">Aggiorna</button>
+            </div>
+            <div class="history-list" id="history-list">
+              <!-- Filled by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Viewer Panel -->
+          <div class="history-viewer-panel">
+            <div class="viewer-header" id="viewer-header">
+              <h3 id="viewer-title">Seleziona un meeting</h3>
+              <div class="viewer-tabs" id="viewer-tabs" style="display: none;">
+                <button id="btn-transcript-tab" class="viewer-tab-button active" data-view="transcript">Transcript</button>
+                <button id="btn-recap-tab" class="viewer-tab-button" data-view="recap" disabled>Recap</button>
+              </div>
+            </div>
+            <div class="viewer-content" id="viewer-content">
+              <div class="viewer-placeholder">Seleziona un meeting per visualizzare il contenuto</div>
+            </div>
+          </div>
         </div>
       </section>
     </main>

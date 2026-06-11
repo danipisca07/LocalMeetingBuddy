@@ -8,6 +8,7 @@ const { exec } = require('child_process');
 const { MeetingSession } = require('./src/meeting-session');
 const { transcribeFile } = require('./src/batch-transcription');
 const { ConfigManager } = require('./src/config-manager');
+const { listMeetings, getMeeting } = require('./src/meeting-history');
 
 const app = express();
 const port = process.env.GUI_PORT || 3000;
@@ -109,6 +110,36 @@ app.post('/api/config', (req, res) => {
   } catch (err) {
     console.error('Config update error:', err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/meetings
+ * List all saved meetings
+ */
+app.get('/api/meetings', async (req, res) => {
+  try {
+    const meetings = await listMeetings('meetings');
+    res.json(meetings);
+  } catch (err) {
+    console.error('Failed to list meetings:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/meetings/:prefix
+ * Get transcript and recap for a specific meeting
+ */
+app.get('/api/meetings/:prefix', async (req, res) => {
+  try {
+    const meeting = await getMeeting(req.params.prefix, 'meetings');
+    res.json(meeting);
+  } catch (err) {
+    console.error('Failed to get meeting:', err);
+    // Return 404 for not found, 400 for invalid prefix
+    const statusCode = err.message.includes('Invalid prefix') ? 400 : 404;
+    res.status(statusCode).json({ error: 'Meeting non trovato' });
   }
 });
 
