@@ -148,6 +148,14 @@ header h1 {
   display: block;
 }
 
+/* Live tab fills the available height so the transcript can scroll internally
+   instead of growing the page indefinitely. */
+#tab-live.tab-pane.active {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -371,6 +379,7 @@ header h1 {
 /* Transcript Display */
 .transcript-display {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.9rem;

@@ -1037,7 +1037,7 @@ function populateHistoryList(meetings) {
     item.appendChild(icons);
 
     item.addEventListener('click', () => {
-      handleSelectMeeting(meeting.prefix);
+      handleSelectMeeting(meeting.prefix, item);
     });
 
     listContainer.appendChild(item);
@@ -1047,7 +1047,7 @@ function populateHistoryList(meetings) {
 /**
  * Handle selecting a meeting from the list
  */
-async function handleSelectMeeting(prefix) {
+async function handleSelectMeeting(prefix, itemElement) {
   try {
     const response = await fetch(`/api/meetings/${encodeURIComponent(prefix)}`);
     if (!response.ok) {
@@ -1064,7 +1064,7 @@ async function handleSelectMeeting(prefix) {
     listItems.forEach(item => {
       item.classList.remove('active');
     });
-    event.currentTarget?.classList.add('active');
+    itemElement?.classList.add('active');
 
     // Update viewer header (drop data-i18n so a language switch won't overwrite the meeting name)
     const viewerTitle = document.getElementById('viewer-title');
