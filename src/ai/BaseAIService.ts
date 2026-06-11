@@ -21,11 +21,20 @@ export abstract class BaseAIService implements AIService {
 
   private isProcessing = false;
   private readonly queue: QueuedQuery[] = [];
+  private userContext = '';
 
   constructor(transcriptManager: TranscriptStore, providerName: string) {
     this.transcriptManager = transcriptManager;
     this.providerName = providerName;
     this.chatHistoryManager = new ChatHistoryManager();
+  }
+
+  /**
+   * User-supplied extra context (agenda, participants, goals…) injected into
+   * the system prompt of every subsequent query. Empty string disables it.
+   */
+  setUserContext(text: string): void {
+    this.userContext = (text ?? '').trim();
   }
 
   query(userText: string): Promise<string> {
@@ -49,8 +58,11 @@ export abstract class BaseAIService implements AIService {
 
     try {
       const currentTranscript = this.transcriptManager.getTranscript();
+      const contextBlock = this.userContext
+        ? `\n\n=== CONTESTO FORNITO DALL'UTENTE ===\n${this.userContext}\n=== FINE CONTESTO ===`
+        : '';
       const dynamicSystemPrompt =
-        `${this.systemPrompt}\n\n=== TRASCRIZIONE MEETING ===\n${currentTranscript}\n=== FINE TRASCRIZIONE ===`;
+        `${this.systemPrompt}${contextBlock}\n\n=== TRASCRIZIONE MEETING ===\n${currentTranscript}\n=== FINE TRASCRIZIONE ===`;
 
       const history: ChatMessage[] = [
         ...this.chatHistoryManager.getHistory(),

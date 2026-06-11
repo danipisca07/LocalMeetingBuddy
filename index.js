@@ -18,12 +18,28 @@ if (!fs.existsSync('meetings')) {
   fs.mkdirSync('meetings');
 }
 
+// Optional first positional argument: a markdown file with extra context
+// for the AI (agenda, participants, goals…), loaded once at startup.
+function loadUserContext() {
+  const contextPath = process.argv[2];
+  if (!contextPath) return '';
+
+  try {
+    const userContext = fs.readFileSync(contextPath, 'utf8');
+    console.log(`Context loaded from ${contextPath}`);
+    return userContext;
+  } catch (err) {
+    console.error(`Failed to read context file "${contextPath}": ${err.message}`);
+    process.exit(1);
+  }
+}
+
 // Main Loop
 async function startApp() {
   let session;
   try {
     // Create session with environment configuration
-    session = new MeetingSession();
+    session = new MeetingSession({ userContext: loadUserContext() });
 
     // Handle transcription events from session
     session.on('transcription', (evt) => {

@@ -29,6 +29,10 @@
     "transcript": "Trascrizione",
     "chat": "Chat AI"
   },
+  "context": {
+    "title": "Contesto aggiuntivo",
+    "placeholder": "Agenda, partecipanti, obiettivi… informazioni extra per l'AI (opzionale)"
+  },
   "chat": {
     "placeholder": "Fai una domanda…",
     "thinking": "L'agente sta pensando…",

@@ -264,6 +264,16 @@ wsClient.registerHandler('ai-response', (data) => {
   updateButtonState();
 });
 
+wsClient.registerHandler('context', (data) => {
+  const textarea = document.getElementById('context-input');
+  if (!textarea) return;
+
+  // Don't clobber the user's typing: only sync when the field isn't focused
+  if (document.activeElement !== textarea && textarea.value !== data.text) {
+    textarea.value = data.text || '';
+  }
+});
+
 wsClient.registerHandler('ai-error', (data) => {
   console.error('AI error:', data);
   document.getElementById('chat-thinking').style.display = 'none';
@@ -394,6 +404,23 @@ function handleSendChat() {
   document.getElementById('chat-thinking').style.display = 'block';
 
   wsClient.send({ command: 'query', text });
+}
+
+// User-context sync (debounced so we don't send on every keystroke)
+let contextSendTimer = null;
+
+/**
+ * Handle input in the context textarea: push the new context to the server
+ * after a short pause in typing.
+ */
+function handleContextInput() {
+  clearTimeout(contextSendTimer);
+  contextSendTimer = setTimeout(() => {
+    const textarea = document.getElementById('context-input');
+    if (textarea) {
+      wsClient.send({ command: 'setContext', text: textarea.value });
+    }
+  }, 500);
 }
 
 /**
@@ -587,6 +614,11 @@ function initializeLiveMeeting() {
 
   if (chatInput) {
     chatInput.addEventListener('keydown', handleChatInputKeydown);
+  }
+
+  const contextInput = document.getElementById('context-input');
+  if (contextInput) {
+    contextInput.addEventListener('input', handleContextInput);
   }
 }
 

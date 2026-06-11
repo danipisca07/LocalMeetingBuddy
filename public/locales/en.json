@@ -29,6 +29,10 @@
     "transcript": "Transcript",
     "chat": "AI Chat"
   },
+  "context": {
+    "title": "Additional context",
+    "placeholder": "Agenda, participants, goals… extra information for the AI (optional)"
+  },
   "chat": {
     "placeholder": "Ask a question…",
     "thinking": "The agent is thinking…",

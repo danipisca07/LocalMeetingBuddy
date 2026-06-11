@@ -173,6 +173,33 @@ describe('MeetingSession', () => {
     assert.strictEqual(typeof transcript, 'string');
   });
 
+  it('should propagate userContext from config to the AI client', () => {
+    const session = new MeetingSession({
+      transcriptionProvider: 'local',
+      userContext: 'Project name: Apollo'
+    });
+
+    assert.strictEqual(session.config.userContext, 'Project name: Apollo');
+
+    let received = null;
+    session.aiClient.setUserContext = (text) => { received = text; };
+
+    session.setUserContext('Updated context');
+    assert.strictEqual(session.config.userContext, 'Updated context');
+    assert.strictEqual(received, 'Updated context');
+  });
+
+  it('should default userContext to empty string and normalize falsy updates', () => {
+    const session = new MeetingSession({
+      transcriptionProvider: 'local'
+    });
+
+    assert.strictEqual(session.config.userContext, '');
+
+    session.setUserContext(null);
+    assert.strictEqual(session.config.userContext, '');
+  });
+
   it('should throw if session is already running on start', async () => {
     const session = new MeetingSession({
       transcriptionProvider: 'local'

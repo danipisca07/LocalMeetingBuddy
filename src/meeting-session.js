@@ -16,6 +16,7 @@ class MeetingSession extends EventEmitter {
    *   sampleRate?: number,              // default 16000
    *   confidenceThreshold?: number,     // default 0.85
    *   skipLlm?: boolean,
+   *   userContext?: string,             // extra context injected into AI prompts
    * }} config
    */
   constructor(config = {}) {
@@ -29,6 +30,7 @@ class MeetingSession extends EventEmitter {
       sampleRate: config.sampleRate || 16000,
       confidenceThreshold: config.confidenceThreshold !== undefined ? config.confidenceThreshold : 0.85,
       skipLlm: config.skipLlm !== undefined ? config.skipLlm : process.env.SKIP_LLM === 'true',
+      userContext: config.userContext || '',
     };
 
     // Validate configuration
@@ -40,7 +42,20 @@ class MeetingSession extends EventEmitter {
     this.deviceManager = null;
     this.transcriptManager = new TranscriptManager();
     this.aiClient = createAIService(this.transcriptManager);
+    if (this.config.userContext) {
+      this.aiClient.setUserContext(this.config.userContext);
+    }
     this.lastSavePrefix = null; // Set when saving outputs
+  }
+
+  /**
+   * Set or update the user-supplied extra context used by the AI
+   * (live answers and final recap). An empty string removes it.
+   * @param {string} text
+   */
+  setUserContext(text) {
+    this.config.userContext = text || '';
+    this.aiClient.setUserContext(this.config.userContext);
   }
 
   /**

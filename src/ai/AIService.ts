@@ -1,6 +1,7 @@
 /** Public contract implemented by every AI provider. */
 export interface AIService {
   query(userText: string): Promise<string>;
+  setUserContext(text: string): void;
 }
 
 /** A single turn in the conversation history. */

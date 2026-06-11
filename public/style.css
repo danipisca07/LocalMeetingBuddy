@@ -346,6 +346,28 @@ header h1 {
   padding: 1rem;
 }
 
+/* User Context Panel */
+.context-panel {
+  flex: 0 0 auto;
+}
+
+.context-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.context-input:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
 /* Transcript Display */
 .transcript-display {
   flex: 1;
@@ -678,6 +700,7 @@ header h1 {
   font-size: 0.95rem;
   font-family: inherit;
   background-color: white;
+  width: 100%;
 }
 
 .config-input:focus,
@@ -692,6 +715,13 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
+}
+
+.select-wrapper .config-select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
 }
 
 .loopback-hint {

@@ -24,6 +24,9 @@ let lastBroadcastState = 'idle';
 // Batch job state (mutual exclusion with meeting)
 let batchJob = null; // { jobId, state }
 
+// User-supplied extra context for the AI; survives across meetings in this GUI session
+let userContext = '';
+
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -219,6 +222,12 @@ wss.on('connection', (ws) => {
     data: { state: meetingState }
   }));
 
+  // Send current user context so reloads / extra tabs restore the textarea
+  ws.send(JSON.stringify({
+    type: 'context',
+    data: { text: userContext }
+  }));
+
   // Handle incoming messages from client
   ws.on('message', async (data) => {
     try {
@@ -244,6 +253,10 @@ wss.on('connection', (ws) => {
 
         case 'startBatch':
           await handleStartBatch(ws, msg);
+          break;
+
+        case 'setContext':
+          handleSetContext(msg);
           break;
 
         default:
@@ -318,6 +331,7 @@ async function handleStartMeeting(ws) {
       audioDeviceIdMic: config.audioDeviceIdMic,
       audioDeviceIdSystem: config.audioDeviceIdSystem,
       skipLlm: config.skipLlm,
+      userContext,
     });
 
     // Wire up events
@@ -438,6 +452,21 @@ async function handleQuery(ws, queryText) {
       data: { message: err.message }
     });
   }
+}
+
+/**
+ * Handle setContext command: store the user-supplied extra context, apply it
+ * to the running session (if any) and sync every connected client.
+ */
+function handleSetContext(msg) {
+  userContext = typeof msg.text === 'string' ? msg.text : '';
+  if (meetingSession) {
+    meetingSession.setUserContext(userContext);
+  }
+  broadcastMessage({
+    type: 'context',
+    data: { text: userContext }
+  });
 }
 
 /**
