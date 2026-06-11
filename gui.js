@@ -6,6 +6,7 @@ const fs = require('fs');
 const { WebSocketServer } = require('ws');
 const { exec } = require('child_process');
 const { MeetingSession } = require('./src/meeting-session');
+const { transcribeFile } = require('./src/batch-transcription');
 
 const app = express();
 const port = process.env.GUI_PORT || 3000;
@@ -14,6 +15,9 @@ const port = process.env.GUI_PORT || 3000;
 let meetingSession = null;
 let meetingState = 'idle'; // 'idle', 'starting', 'running', 'stopping', 'stopped', 'error'
 let lastBroadcastState = 'idle';
+
+// Batch job state (mutual exclusion with meeting)
+let batchJob = null; // { jobId, state }
 
 // Middleware
 app.use(express.json());
@@ -71,11 +75,7 @@ wss.on('connection', (ws) => {
           break;
 
         case 'startBatch':
-          // Placeholder: will be implemented in phase 2
-          ws.send(JSON.stringify({
-            type: 'error',
-            data: { message: 'startBatch not yet implemented' }
-          }));
+          await handleStartBatch(ws, msg);
           break;
 
         default:
@@ -107,6 +107,14 @@ wss.on('connection', (ws) => {
  */
 async function handleStartMeeting(ws) {
   // Check if a meeting is already running or batch job is active
+  if (batchJob) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Operazione già in corso' }
+    }));
+    return;
+  }
+
   if (meetingSession && meetingSession.isRunning) {
     ws.send(JSON.stringify({
       type: 'error',
@@ -269,6 +277,77 @@ function handleGetTranscript(ws) {
     type: 'transcript',
     data: { text: transcript }
   }));
+}
+
+/**
+ * Handle startBatch command
+ */
+async function handleStartBatch(ws, msg) {
+  // Check if a batch job is already running or meeting is live
+  if (batchJob) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Operazione già in corso' }
+    }));
+    return;
+  }
+
+  if (meetingSession && meetingSession.isRunning) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Operazione già in corso' }
+    }));
+    return;
+  }
+
+  const { filePath, provider, track, skipLlm } = msg;
+
+  // Validate filePath
+  if (!filePath || typeof filePath !== 'string') {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'filePath richiesto' }
+    }));
+    return;
+  }
+
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: `File non trovato: ${resolvedPath}` }
+    }));
+    return;
+  }
+
+  // Start batch job
+  const jobId = Date.now().toString(36);
+  batchJob = { jobId, state: 'starting' };
+
+  // Fire transcription without blocking
+  transcribeFile(resolvedPath, {
+    provider,
+    track: track !== null ? track : null,
+    skipLlm: skipLlm === true,
+    outDir: 'meetings',
+    onEvent: (evt) => {
+      // Broadcast batch progress to all clients
+      broadcastMessage({
+        type: 'batch-progress',
+        data: { jobId, ...evt }
+      });
+    },
+  }).then(() => {
+    // Success: job complete
+    batchJob = null;
+  }).catch((err) => {
+    // Error: broadcast error state
+    broadcastMessage({
+      type: 'batch-progress',
+      data: { jobId, state: 'error', message: err.message }
+    });
+    batchJob = null;
+  });
 }
 
 // Create meetings directory if it doesn't exist

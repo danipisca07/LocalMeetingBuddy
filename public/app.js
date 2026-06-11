@@ -273,13 +273,82 @@ wsClient.registerHandler('ai-error', (data) => {
   updateButtonState();
 });
 
-// Keep existing handlers for phases 2+
+// Batch transcription state
+let batchInProgress = false;
+let currentBatchJobId = null;
+
+/**
+ * Append a batch progress line to the log
+ */
+function appendBatchProgressLine(text, type = 'info') {
+  const logDisplay = document.getElementById('batch-log');
+  if (!logDisplay) return;
+
+  const line = document.createElement('div');
+  line.className = `batch-log-line ${type}`;
+  line.textContent = text;
+
+  logDisplay.appendChild(line);
+
+  // Auto-scroll to bottom
+  logDisplay.scrollTop = logDisplay.scrollHeight;
+}
+
+/**
+ * Clear batch progress log
+ */
+function clearBatchLog() {
+  const logDisplay = document.getElementById('batch-log');
+  if (!logDisplay) return;
+  logDisplay.innerHTML = '';
+}
+
 wsClient.registerHandler('batch-progress', (data) => {
   console.log('Batch progress:', data);
+  currentBatchJobId = data.jobId;
+
+  switch (data.state) {
+    case 'probing':
+      appendBatchProgressLine('Analisi file…');
+      batchInProgress = true;
+      break;
+    case 'decoding':
+      appendBatchProgressLine(`Decodifica traccia ${data.track}/${data.totalTracks}…`);
+      break;
+    case 'transcribing':
+      appendBatchProgressLine(`Trascrizione traccia ${data.track} (${data.durationSec}s di audio)…`);
+      break;
+    case 'transcription':
+      appendBatchProgressLine(`[${data.label}]: ${data.text}`);
+      break;
+    case 'transcription-error':
+      appendBatchProgressLine(`Errore traccia ${data.track}: ${data.message}`, 'error');
+      break;
+    case 'track-done':
+      appendBatchProgressLine(`✔ Traccia ${data.track} completata`);
+      break;
+    case 'saving':
+      appendBatchProgressLine('Salvataggio in corso…');
+      break;
+    case 'done':
+      appendBatchProgressLine(`✔ Completato → ${data.outputs.transcriptPath}`);
+      if (data.outputs.recapPath) {
+        appendBatchProgressLine(`✔ Recap → ${data.outputs.recapPath}`);
+      }
+      batchInProgress = false;
+      updateBatchButtonState();
+      break;
+    case 'error':
+      appendBatchProgressLine(`Errore: ${data.message}`, 'error');
+      batchInProgress = false;
+      updateBatchButtonState();
+      break;
+  }
 });
 
 wsClient.registerHandler('error', (data) => {
   console.error('Server error:', data);
+  appendBatchProgressLine(`Errore: ${data.message}`, 'error');
 });
 
 /**
@@ -358,6 +427,46 @@ function initializeTabs() {
 }
 
 /**
+ * Update batch button state based on current conditions
+ */
+function updateBatchButtonState() {
+  const btnTranscribe = document.getElementById('btn-start-batch');
+  if (btnTranscribe) {
+    btnTranscribe.disabled = batchInProgress;
+  }
+}
+
+/**
+ * Handle batch transcription start button click
+ */
+function handleStartBatch() {
+  const fileInput = document.getElementById('batch-file-path');
+  const providerSelect = document.getElementById('batch-provider');
+  const trackInput = document.getElementById('batch-track');
+  const skipLlmCheckbox = document.getElementById('batch-skip-llm');
+
+  const filePath = fileInput ? fileInput.value.trim() : '';
+  if (!filePath) {
+    alert('Inserire il percorso del file');
+    return;
+  }
+
+  const provider = providerSelect ? providerSelect.value : null;
+  const track = trackInput && trackInput.value ? parseInt(trackInput.value, 10) : null;
+  const skipLlm = skipLlmCheckbox ? skipLlmCheckbox.checked : false;
+
+  // Clear log and start
+  clearBatchLog();
+  wsClient.send({
+    command: 'startBatch',
+    filePath,
+    provider: provider === 'default' ? null : provider,
+    track,
+    skipLlm,
+  });
+}
+
+/**
  * Initialize Phase 1: Live Meeting
  */
 function initializeLiveMeeting() {
@@ -383,10 +492,21 @@ function initializeLiveMeeting() {
   }
 }
 
+/**
+ * Initialize Phase 2: Batch Transcription
+ */
+function initializeBatchTranscription() {
+  const btnTranscribe = document.getElementById('btn-start-batch');
+  if (btnTranscribe) {
+    btnTranscribe.addEventListener('click', handleStartBatch);
+  }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initializeTabs();
   initializeLiveMeeting();
+  initializeBatchTranscription();
 
   // On connection, request current transcript
   setTimeout(() => {

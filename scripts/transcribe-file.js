@@ -22,17 +22,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-const TranscriptManager = require('../src/transcript-manager');
-const { createAIService } = require('../src/ai');
-const { createTranscriptionService } = require('../src/transcription');
-const { saveMeetingOutputs } = require('../src/meeting-output');
-const {
-  probeAudioStreams,
-  decodeTrackToPcm16,
-  PIPELINE_SAMPLE_RATE,
-} = require('../src/audio-file-source');
-
-const CONFIDENCE_THRESHOLD = 0.85; // mirrors index.js
+const { transcribeFile } = require('../src/batch-transcription');
 
 function parseArgs(argv) {
   const opts = { input: null, provider: null, out: 'meetings', track: null, skipLlm: false };
@@ -94,77 +84,60 @@ async function main() {
     process.exit(1);
   }
 
-  // Apply provider override before the factory reads the environment.
-  if (opts.provider) process.env.TRANSCRIPTION_PROVIDER = opts.provider.toLowerCase();
-  const provider = (process.env.TRANSCRIPTION_PROVIDER || 'deepgram').toLowerCase();
-  const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
-  if (provider === 'deepgram' && !deepgramApiKey) {
-    console.error('Error: DEEPGRAM_API_KEY must be set in .env (or use --provider local)');
-    process.exit(1);
-  }
-
+  // Determine provider for banner output
+  const providerForBanner = opts.provider || process.env.TRANSCRIPTION_PROVIDER || 'deepgram';
   console.log(`--- MeetingTwin File Transcription ---`);
   console.log(`Input:    ${inputPath}`);
-  console.log(`Provider: ${provider}`);
+  console.log(`Provider: ${providerForBanner}\n`);
 
-  // Discover audio tracks.
-  let trackIndices;
+  // Event handler to print progress matching the original script output
+  function handleEvent(evt) {
+    switch (evt.state) {
+      case 'probing':
+        break; // No output for probing
+      case 'decoding':
+        console.log(`Decoding track ${evt.track}...`);
+        break;
+      case 'transcribing':
+        console.log(`Transcribing track ${evt.track} (${evt.durationSec}s of audio)...`);
+        break;
+      case 'transcription':
+        console.log(`[${evt.label}]: ${evt.text}`);
+        break;
+      case 'transcription-error':
+        console.error(`[track ${evt.track}] Transcription error: ${evt.message}`);
+        break;
+      case 'track-done':
+        console.log(`Track ${evt.track} done.\n`);
+        break;
+      case 'saving':
+        break; // No output during saving
+      case 'done':
+        console.log(`\nTranscript saved to ${evt.outputs.transcriptPath}`);
+        if (evt.outputs.recapPath) {
+          console.log(`Recap saved to ${evt.outputs.recapPath}`);
+        }
+        break;
+      case 'error':
+        console.error(`Error: ${evt.message}`);
+        break;
+    }
+  }
+
   try {
-    trackIndices = await probeAudioStreams(inputPath);
+    await transcribeFile(inputPath, {
+      provider: opts.provider,
+      track: opts.track,
+      skipLlm: opts.skipLlm,
+      outDir: opts.out,
+      onEvent: handleEvent,
+    });
+    console.log('\nDone.');
+    process.exit(0);
   } catch (err) {
-    console.error(`Error probing audio streams: ${err.message}`);
+    console.error(`\nFatal error: ${err.message}`);
     process.exit(1);
   }
-  if (opts.track !== null) {
-    if (Number.isNaN(opts.track) || !trackIndices.includes(opts.track)) {
-      console.error(`Error: track ${opts.track} not found. Available tracks: ${trackIndices.join(', ')}`);
-      process.exit(1);
-    }
-    trackIndices = [opts.track];
-  }
-  const trackCount = trackIndices.length;
-  console.log(`Audio tracks: ${trackCount} (${trackIndices.join(', ')})\n`);
-
-  const transcriptManager = new TranscriptManager();
-  const aiClient = opts.skipLlm ? null : createAIService(transcriptManager);
-  const baseTimestamp = Date.now();
-
-  for (const trackIndex of trackIndices) {
-    console.log(`Decoding track ${trackIndex}...`);
-    const pcm = await decodeTrackToPcm16(inputPath, trackIndex);
-    console.log(`Transcribing track ${trackIndex} (${(pcm.length / (PIPELINE_SAMPLE_RATE * 2)).toFixed(1)}s of audio)...`);
-
-    const source = trackCount > 1 ? `track${trackIndex}` : 'track0';
-    const service = createTranscriptionService(deepgramApiKey);
-
-    service.on('transcription', (evt) => {
-      if (evt.confidence !== undefined && evt.confidence < CONFIDENCE_THRESHOLD) return;
-      const speaker = evt.speaker ?? 0;
-      const label = trackCount > 1 ? `track${trackIndex}-${speaker}` : `speaker-${speaker}`;
-      console.log(`[${label}]: ${evt.text}`);
-      transcriptManager.addTranscriptEntry(evt.timestamp, label, evt.text, evt.confidence);
-    });
-    service.on('error', (err) => {
-      console.error(`[track ${trackIndex}] Transcription error: ${err.message}`);
-    });
-
-    await service.transcribeBatch(pcm, {
-      sampleRate: PIPELINE_SAMPLE_RATE,
-      source,
-      baseTimestamp,
-    });
-    console.log(`Track ${trackIndex} done.\n`);
-  }
-
-  const prefix = path.basename(inputPath, path.extname(inputPath));
-  await saveMeetingOutputs(transcriptManager, aiClient, {
-    outDir: opts.out,
-    prefix,
-    skipLlm: opts.skipLlm,
-  });
-
-  console.log('\nDone.');
-  process.exit(0);
 }
 
 main().catch((err) => {
