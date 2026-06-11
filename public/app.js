@@ -502,11 +502,263 @@ function initializeBatchTranscription() {
   }
 }
 
+// Configuration state
+let currentConfig = {};
+let availableDevices = [];
+
+/**
+ * Load and populate configuration UI
+ */
+async function loadConfiguration() {
+  try {
+    const response = await fetch('/api/config');
+    if (!response.ok) {
+      console.error('Failed to load config:', response.statusText);
+      return;
+    }
+
+    currentConfig = await response.json();
+    populateConfigForm();
+  } catch (err) {
+    console.error('Error loading configuration:', err);
+  }
+}
+
+/**
+ * Load and populate available devices
+ */
+async function loadDevices() {
+  try {
+    const response = await fetch('/api/devices');
+    if (!response.ok) {
+      console.error('Failed to load devices:', response.statusText);
+      return;
+    }
+
+    availableDevices = await response.json();
+    populateDeviceSelects();
+  } catch (err) {
+    console.error('Error loading devices:', err);
+  }
+}
+
+/**
+ * Populate device select dropdowns
+ */
+function populateDeviceSelects() {
+  const micSelect = document.getElementById('config-device-mic');
+  const systemSelect = document.getElementById('config-device-system');
+
+  if (!micSelect || !systemSelect) return;
+
+  // Clear existing options (except the first "— da .env —" option)
+  while (micSelect.options.length > 1) {
+    micSelect.remove(1);
+  }
+  while (systemSelect.options.length > 1) {
+    systemSelect.remove(1);
+  }
+
+  // Add device options
+  for (const device of availableDevices) {
+    const micOption = document.createElement('option');
+    micOption.value = device.id.toString();
+    micOption.textContent = `(${device.id}) ${device.name}`;
+    micSelect.appendChild(micOption);
+
+    const systemOption = document.createElement('option');
+    systemOption.value = device.id.toString();
+    systemOption.textContent = `(${device.id}) ${device.name}`;
+    if (device.isLoopbackCandidate) {
+      systemOption.textContent += ' ★';
+    }
+    systemSelect.appendChild(systemOption);
+  }
+
+  // Set current values
+  if (currentConfig.audioDeviceIdMic) {
+    micSelect.value = currentConfig.audioDeviceIdMic;
+  }
+  if (currentConfig.audioDeviceIdSystem) {
+    systemSelect.value = currentConfig.audioDeviceIdSystem;
+  }
+
+  // Show loopback hint if current system device is a loopback candidate
+  const systemOptionSelected = systemSelect.selectedOptions[0];
+  const loopbackHint = document.querySelector('.loopback-hint');
+  if (loopbackHint && systemOptionSelected && systemOptionSelected.textContent.includes('★')) {
+    loopbackHint.style.display = 'inline';
+  } else if (loopbackHint) {
+    loopbackHint.style.display = 'none';
+  }
+}
+
+/**
+ * Populate configuration form with current values
+ */
+function populateConfigForm() {
+  // Provider
+  const providerSelect = document.getElementById('config-provider');
+  if (providerSelect) {
+    providerSelect.value = currentConfig.transcriptionProvider || 'deepgram';
+  }
+
+  // Languages
+  const deepgramLanguageInput = document.getElementById('config-deepgram-language');
+  if (deepgramLanguageInput) {
+    deepgramLanguageInput.value = currentConfig.deepgramLanguage || 'en';
+  }
+
+  const localLanguageInput = document.getElementById('config-local-language');
+  if (localLanguageInput) {
+    localLanguageInput.value = currentConfig.localTranscriptionLanguage || 'en';
+  }
+
+  // Whisper model
+  const whisperModelSelect = document.getElementById('config-whisper-model');
+  if (whisperModelSelect) {
+    whisperModelSelect.value = currentConfig.localWhisperModel || 'base';
+  }
+
+  // Checkboxes
+  const isLiveMeetingCheckbox = document.getElementById('config-is-live-meeting');
+  if (isLiveMeetingCheckbox) {
+    isLiveMeetingCheckbox.checked = currentConfig.isLiveMeeting || false;
+  }
+
+  const skipLlmCheckbox = document.getElementById('config-skip-llm');
+  if (skipLlmCheckbox) {
+    skipLlmCheckbox.checked = currentConfig.skipLlm || false;
+  }
+
+  // Update visibility of provider-specific fields
+  updateProviderVisibility();
+}
+
+/**
+ * Update visibility of provider-specific fields
+ */
+function updateProviderVisibility() {
+  const providerSelect = document.getElementById('config-provider');
+  const provider = providerSelect ? providerSelect.value : 'deepgram';
+
+  const deepgramGroup = document.getElementById('config-deepgram-language-group');
+  const localLanguageGroup = document.getElementById('config-local-language-group');
+  const whisperModelGroup = document.getElementById('config-whisper-model-group');
+
+  if (provider === 'deepgram') {
+    if (deepgramGroup) deepgramGroup.style.display = 'block';
+    if (localLanguageGroup) localLanguageGroup.style.display = 'none';
+    if (whisperModelGroup) whisperModelGroup.style.display = 'none';
+  } else {
+    if (deepgramGroup) deepgramGroup.style.display = 'none';
+    if (localLanguageGroup) localLanguageGroup.style.display = 'block';
+    if (whisperModelGroup) whisperModelGroup.style.display = 'block';
+  }
+}
+
+/**
+ * Handle refresh devices button
+ */
+async function handleRefreshDevices() {
+  await loadDevices();
+  showConfigMessage('Dispositivi aggiornati', 'success');
+}
+
+/**
+ * Show success/error message in config section
+ */
+function showConfigMessage(message, type = 'success') {
+  const messageDiv = document.getElementById('config-message');
+  if (!messageDiv) return;
+
+  messageDiv.textContent = message;
+  messageDiv.className = `config-message ${type}`;
+  messageDiv.style.display = 'block';
+
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    messageDiv.style.display = 'none';
+  }, 5000);
+}
+
+/**
+ * Handle save configuration button
+ */
+async function handleSaveConfig() {
+  const providerSelect = document.getElementById('config-provider');
+  const micSelect = document.getElementById('config-device-mic');
+  const systemSelect = document.getElementById('config-device-system');
+  const deepgramLanguageInput = document.getElementById('config-deepgram-language');
+  const localLanguageInput = document.getElementById('config-local-language');
+  const whisperModelSelect = document.getElementById('config-whisper-model');
+  const isLiveMeetingCheckbox = document.getElementById('config-is-live-meeting');
+  const skipLlmCheckbox = document.getElementById('config-skip-llm');
+
+  const configUpdate = {
+    transcriptionProvider: providerSelect ? providerSelect.value : 'deepgram',
+    audioDeviceIdMic: micSelect ? micSelect.value : '',
+    audioDeviceIdSystem: systemSelect ? systemSelect.value : '',
+    deepgramLanguage: deepgramLanguageInput ? deepgramLanguageInput.value : 'en',
+    localTranscriptionLanguage: localLanguageInput ? localLanguageInput.value : 'en',
+    localWhisperModel: whisperModelSelect ? whisperModelSelect.value : 'base',
+    isLiveMeeting: isLiveMeetingCheckbox ? isLiveMeetingCheckbox.checked : false,
+    skipLlm: skipLlmCheckbox ? skipLlmCheckbox.checked : false,
+  };
+
+  try {
+    const response = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configUpdate),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      showConfigMessage(error.error || 'Errore nel salvataggio', 'error');
+      return;
+    }
+
+    const result = await response.json();
+    currentConfig = result.config;
+    showConfigMessage('Configurazione salvata ✓', 'success');
+  } catch (err) {
+    console.error('Error saving config:', err);
+    showConfigMessage(`Errore: ${err.message}`, 'error');
+  }
+}
+
+/**
+ * Initialize Phase 3: Configuration
+ */
+function initializeConfiguration() {
+  const btnRefresh = document.getElementById('btn-refresh-devices');
+  const btnSave = document.getElementById('btn-save-config');
+  const providerSelect = document.getElementById('config-provider');
+
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', handleRefreshDevices);
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', handleSaveConfig);
+  }
+
+  if (providerSelect) {
+    providerSelect.addEventListener('change', updateProviderVisibility);
+  }
+
+  // Load initial configuration and devices
+  loadConfiguration();
+  loadDevices();
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initializeTabs();
   initializeLiveMeeting();
   initializeBatchTranscription();
+  initializeConfiguration();
 
   // On connection, request current transcript
   setTimeout(() => {

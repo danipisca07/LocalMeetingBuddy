@@ -142,8 +142,102 @@
 
       <!-- Configuration Tab -->
       <section id="tab-config" class="tab-pane">
-        <div class="placeholder">
-          <p>Disponibile nella fase 3</p>
+        <div class="configuration">
+          <!-- Audio Devices Section -->
+          <div class="config-section">
+            <div class="section-header">
+              <h3>Dispositivi audio</h3>
+              <button id="btn-refresh-devices" class="btn btn-secondary">Aggiorna</button>
+            </div>
+
+            <div class="form-group">
+              <label for="config-device-mic">Microfono:</label>
+              <div class="select-wrapper">
+                <select id="config-device-mic" class="config-select">
+                  <option value="">— da .env —</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="config-device-system">Audio sistema:</label>
+              <div class="select-wrapper">
+                <select id="config-device-system" class="config-select">
+                  <option value="">— da .env —</option>
+                </select>
+                <span class="loopback-hint" style="display: none;">★ candidato loopback</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transcription Section -->
+          <div class="config-section">
+            <h3>Trascrizione</h3>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="config-provider">Provider:</label>
+                <select id="config-provider" class="config-select">
+                  <option value="deepgram">deepgram</option>
+                  <option value="local">local</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="config-deepgram-language-group">
+                <label for="config-deepgram-language">Lingua (Deepgram):</label>
+                <input
+                  type="text"
+                  id="config-deepgram-language"
+                  class="config-input"
+                  placeholder="en"
+                >
+              </div>
+
+              <div class="form-group" id="config-local-language-group" style="display: none;">
+                <label for="config-local-language">Lingua (locale):</label>
+                <input
+                  type="text"
+                  id="config-local-language"
+                  class="config-input"
+                  placeholder="en"
+                >
+              </div>
+            </div>
+
+            <div class="form-group" id="config-whisper-model-group" style="display: none;">
+              <label for="config-whisper-model">Modello Whisper locale:</label>
+              <select id="config-whisper-model" class="config-select">
+                <option value="tiny">tiny</option>
+                <option value="base">base</option>
+                <option value="small">small</option>
+                <option value="medium">medium</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Options Section -->
+          <div class="config-section">
+            <h3>Opzioni</h3>
+
+            <div class="form-group checkbox">
+              <input type="checkbox" id="config-is-live-meeting">
+              <label for="config-is-live-meeting">Meeting dal vivo (IS_LIVE_MEETING)</label>
+            </div>
+
+            <div class="form-group checkbox">
+              <input type="checkbox" id="config-skip-llm">
+              <label for="config-skip-llm">Salta recap LLM (SKIP_LLM)</label>
+            </div>
+          </div>
+
+          <!-- Save Section -->
+          <div class="config-section">
+            <button id="btn-save-config" class="btn btn-primary">Salva</button>
+            <div id="config-message" class="config-message" style="display: none;"></div>
+            <p class="config-note">
+              Le modifiche valgono per la sessione corrente della GUI e non scrivono il file .env.
+            </p>
+          </div>
         </div>
       </section>
 

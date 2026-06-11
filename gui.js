@@ -7,9 +7,13 @@ const { WebSocketServer } = require('ws');
 const { exec } = require('child_process');
 const { MeetingSession } = require('./src/meeting-session');
 const { transcribeFile } = require('./src/batch-transcription');
+const { ConfigManager } = require('./src/config-manager');
 
 const app = express();
 const port = process.env.GUI_PORT || 3000;
+
+// Configuration manager (per-session, in-memory)
+const configManager = new ConfigManager();
 
 // Meeting session state
 let meetingSession = null;
@@ -23,9 +27,89 @@ let batchJob = null; // { jobId, state }
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+/**
+ * Helper: detect if device name suggests it's a loopback/stereo mix device
+ * Based on naming patterns from scripts/check-audio.js
+ */
+function isLoopbackDevice(deviceName) {
+  const name = deviceName.toLowerCase();
+  return (
+    name.includes('loopback') ||
+    name.includes('stereo mix') ||
+    name.includes('virtual') ||
+    name.includes('vb-audio')
+  );
+}
+
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
+});
+
+/**
+ * GET /api/devices
+ * List available audio input devices with loopback detection
+ */
+app.get('/api/devices', (req, res) => {
+  try {
+    const naudiodon = require('naudiodon');
+    const devices = naudiodon.getDevices();
+
+    // Filter for input devices and add loopback detection
+    const inputDevices = devices
+      .filter(device => device.maxInputChannels > 0)
+      .map(device => ({
+        id: device.id,
+        name: device.name,
+        maxInputChannels: device.maxInputChannels,
+        defaultSampleRate: device.defaultSampleRate,
+        isLoopbackCandidate: isLoopbackDevice(device.name),
+      }));
+
+    res.json(inputDevices);
+  } catch (err) {
+    console.error('Failed to get devices:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/config
+ * Get current configuration (in-memory)
+ */
+app.get('/api/config', (req, res) => {
+  const config = configManager.get();
+  res.json(config);
+});
+
+/**
+ * POST /api/config
+ * Update configuration
+ * Returns 409 if meeting or batch job is active
+ * Returns 400 if validation fails
+ */
+app.post('/api/config', (req, res) => {
+  // Check if meeting or batch job is active
+  if (meetingSession && meetingSession.isRunning) {
+    return res.status(409).json({
+      error: 'Impossibile modificare la configurazione durante un meeting o una trascrizione',
+    });
+  }
+
+  if (batchJob) {
+    return res.status(409).json({
+      error: 'Impossibile modificare la configurazione durante un meeting o una trascrizione',
+    });
+  }
+
+  try {
+    const updated = configManager.update(req.body);
+    configManager.applyToEnv();
+    res.json({ ok: true, config: updated });
+  } catch (err) {
+    console.error('Config update error:', err);
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // Create HTTP server
@@ -138,14 +222,18 @@ async function handleStartMeeting(ws) {
   broadcastMessage({ type: 'status', data: { state: 'starting' } });
 
   try {
-    // Create new meeting session with config from environment
+    // Apply current config to environment before creating session
+    configManager.applyToEnv();
+    const config = configManager.get();
+
+    // Create new meeting session with config from configManager
     meetingSession = new MeetingSession({
-      transcriptionProvider: process.env.TRANSCRIPTION_PROVIDER,
-      deepgramApiKey: process.env.DEEPGRAM_API_KEY,
-      isLiveMeeting: process.env.IS_LIVE_MEETING === 'true',
-      audioDeviceIdMic: process.env.AUDIO_DEVICE_ID_MIC,
-      audioDeviceIdSystem: process.env.AUDIO_DEVICE_ID_SYSTEM,
-      skipLlm: process.env.SKIP_LLM === 'true',
+      transcriptionProvider: config.transcriptionProvider,
+      deepgramApiKey: process.env.DEEPGRAM_API_KEY, // API key stays in env
+      isLiveMeeting: config.isLiveMeeting,
+      audioDeviceIdMic: config.audioDeviceIdMic,
+      audioDeviceIdSystem: config.audioDeviceIdSystem,
+      skipLlm: config.skipLlm,
     });
 
     // Wire up events
@@ -323,6 +411,9 @@ async function handleStartBatch(ws, msg) {
   // Start batch job
   const jobId = Date.now().toString(36);
   batchJob = { jobId, state: 'starting' };
+
+  // Apply current config to environment before transcribing
+  configManager.applyToEnv();
 
   // Fire transcription without blocking
   transcribeFile(resolvedPath, {
