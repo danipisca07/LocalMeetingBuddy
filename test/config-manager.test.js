@@ -177,12 +177,12 @@ describe('ConfigManager', () => {
     it('should throw on invalid localWhisperModel', () => {
       assert.throws(
         () => cm.update({ localWhisperModel: 'large' }),
-        /localWhisperModel must be 'tiny', 'base', 'small', or 'medium'/
+        /localWhisperModel must be 'tiny', 'base', 'small', 'medium', or 'large-v3'/
       );
     });
 
     it('should accept valid localWhisperModel values', () => {
-      const models = ['tiny', 'base', 'small', 'medium'];
+      const models = ['tiny', 'base', 'small', 'medium', 'large-v3'];
       for (const model of models) {
         const updated = cm.update({ localWhisperModel: model });
         assert.strictEqual(updated.localWhisperModel, model);

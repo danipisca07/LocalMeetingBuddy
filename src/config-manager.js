@@ -93,8 +93,8 @@ class ConfigManager {
       // Validate localWhisperModel (only if set)
       if (key === 'localWhisperModel' && value) {
         const model = String(value).toLowerCase();
-        if (!['tiny', 'base', 'small', 'medium'].includes(model)) {
-          throw new Error(`localWhisperModel must be 'tiny', 'base', 'small', or 'medium', got '${value}'`);
+        if (!['tiny', 'base', 'small', 'medium', 'large-v3'].includes(model)) {
+          throw new Error(`localWhisperModel must be 'tiny', 'base', 'small', 'medium', or 'large-v3', got '${value}'`);
         }
       }
 

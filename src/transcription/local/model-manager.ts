@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
+import { Readable, Transform } from 'stream';
 
 /** Resolved on-disk paths of every model file the local provider needs. */
 export interface LocalModelPaths {
@@ -15,7 +15,7 @@ export interface LocalModelPaths {
 }
 
 const RELEASE_BASE = 'https://github.com/k2-fsa/sherpa-onnx/releases/download';
-const WHISPER_SIZES = ['tiny', 'base', 'small', 'medium'] as const;
+const WHISPER_SIZES = ['tiny', 'base', 'small', 'medium', 'large-v3'] as const;
 export type WhisperSize = (typeof WHISPER_SIZES)[number];
 
 // Note: "recongition" is a typo in the upstream sherpa-onnx release tag, not here.
@@ -57,7 +57,33 @@ async function downloadFile(url: string, dest: string): Promise<void> {
   }
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const tmp = `${dest}.download`;
-  await pipeline(Readable.fromWeb(res.body as any), fs.createWriteStream(tmp));
+
+  // Report progress so a large model (e.g. large-v3 ~1 GB) doesn't look frozen.
+  // Logs at most once per ~5% (or per 50 MB when the size is unknown).
+  const total = Number(res.headers.get('content-length')) || 0;
+  const name = path.basename(dest);
+  const MB = 1024 * 1024;
+  let received = 0;
+  let lastLogged = 0;
+  const progress = new Transform({
+    transform(chunk: Buffer, _enc: string, cb: (err: Error | null, data?: Buffer) => void) {
+      received += chunk.length;
+      const step = total ? total * 0.05 : 50 * MB;
+      if (received - lastLogged >= step) {
+        lastLogged = received;
+        const got = (received / MB).toFixed(0);
+        if (total) {
+          const pct = ((received / total) * 100).toFixed(0);
+          console.log(`[local-transcription] ${name}: ${pct}% (${got}/${(total / MB).toFixed(0)} MB)`);
+        } else {
+          console.log(`[local-transcription] ${name}: ${got} MB downloaded`);
+        }
+      }
+      cb(null, chunk);
+    },
+  });
+
+  await pipeline(Readable.fromWeb(res.body as any), progress, fs.createWriteStream(tmp));
   fs.renameSync(tmp, dest);
   console.log(`[local-transcription] Saved ${dest}`);
 }
