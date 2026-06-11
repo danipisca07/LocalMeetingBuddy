@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeetingTwin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header>
+      <h1>MeetingTwin</h1>
+      <div id="connection-status" class="connection-indicator disconnected">
+        <span class="indicator-dot"></span>
+        <span class="indicator-text">Disconnesso</span>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs">
+      <button class="tab-button active" data-tab="tab-live">Meeting Live</button>
+      <button class="tab-button" data-tab="tab-batch">Trascrizione File</button>
+      <button class="tab-button" data-tab="tab-config">Configurazione</button>
+      <button class="tab-button" data-tab="tab-history">Storico</button>
+    </nav>
+
+    <!-- Tab Content -->
+    <main class="tab-content">
+      <!-- Meeting Live Tab -->
+      <section id="tab-live" class="tab-pane active">
+        <div class="placeholder">
+          <p>Disponibile nella fase 1</p>
+        </div>
+      </section>
+
+      <!-- Batch Transcription Tab -->
+      <section id="tab-batch" class="tab-pane">
+        <div class="placeholder">
+          <p>Disponibile nella fase 2</p>
+        </div>
+      </section>
+
+      <!-- Configuration Tab -->
+      <section id="tab-config" class="tab-pane">
+        <div class="placeholder">
+          <p>Disponibile nella fase 3</p>
+        </div>
+      </section>
+
+      <!-- History Tab -->
+      <section id="tab-history" class="tab-pane">
+        <div class="placeholder">
+          <p>Disponibile nella fase 4</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

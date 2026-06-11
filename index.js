@@ -1,46 +1,7 @@
 require('dotenv').config();
 const readline = require('readline');
-const { DeviceManager } = require('./src/device-manager');
-const TranscriptManager = require('./src/transcript-manager');
-const { createAIService } = require('./src/ai');
-const { determineDisplaySource } = require('./src/utils');
-const { saveMeetingOutputs } = require('./src/meeting-output');
+const { MeetingSession } = require('./src/meeting-session');
 const fs = require('fs');
-
-// Configuration
-const SAMPLE_RATE = 16000;
-const CONFIDENCE_THRESHOLD = 0.85; // requirement: > 0.85
-const transcriptionProvider = (process.env.TRANSCRIPTION_PROVIDER || 'deepgram').toLowerCase();
-const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
-const isLiveMeeting = process.env.IS_LIVE_MEETING === 'true';
-
-if (transcriptionProvider === 'deepgram' && !deepgramApiKey) {
-  console.error('Error: DEEPGRAM_API_KEY must be set in .env (or set TRANSCRIPTION_PROVIDER=local)');
-  process.exit(1);
-}
-
-// Initialize Device Manager
-const deviceManager = new DeviceManager();
-
-// Add Microphone Device
-deviceManager.addDevice('mic', {
-    deviceId: process.env.AUDIO_DEVICE_ID_MIC,
-    label: isLiveMeeting ? 'live' : 'user',
-    apiKey: deepgramApiKey,
-    sampleRate: SAMPLE_RATE
-});
-
-// Add System Audio Device
-deviceManager.addDevice('sys', {
-    deviceId: process.env.AUDIO_DEVICE_ID_SYSTEM,
-    label: 'caller',
-    apiKey: deepgramApiKey,
-    sampleRate: SAMPLE_RATE
-});
-
-const transcriptManager = new TranscriptManager();
-
-const aiClient = createAIService(transcriptManager);
 
 // Setup Readline for Terminal UI
 const rl = readline.createInterface({
@@ -52,51 +13,46 @@ const rl = readline.createInterface({
 console.log('--- MeetingTwin AI Assistant ---');
 console.log('Initializing audio and transcription...');
 
-// Handle Transcription Events
-deviceManager.on('transcription', (evt) => {
-    if (evt.confidence === undefined || evt.confidence >= CONFIDENCE_THRESHOLD) {
-        // Determine source display name
-        const displaySource = determineDisplaySource(isLiveMeeting, evt.source, evt.speaker);
-        
-        console.log(`[${displaySource}]: ${evt.text}`);
-        transcriptManager.addTranscriptEntry(evt.timestamp, displaySource, evt.text, evt.confidence);
-        rl.prompt(true);
-    }
-});
-
-// Handle Device Connection Events (Optional logging)
-deviceManager.on('deviceConnected', (id) => {
-    // console.log(`Device connected: ${id}`);
-});
-
-deviceManager.on('deviceDisconnected', (id) => {
-    // console.log(`Device disconnected: ${id}`);
-});
+// Create meetings directory if it doesn't exist
+if (!fs.existsSync('meetings')) {
+  fs.mkdirSync('meetings');
+}
 
 // Main Loop
 async function startApp() {
+  let session;
   try {
-    await deviceManager.startAll();
-    
+    // Create session with environment configuration
+    session = new MeetingSession();
+
+    // Handle transcription events from session
+    session.on('transcription', (evt) => {
+      console.log(`[${evt.source}]: ${evt.text}`);
+      rl.prompt(true);
+    });
+
+    // Handle errors from session
+    session.on('error', (err) => {
+      console.error(`Device error: ${err.message}`);
+    });
+
+    // Start the session
+    await session.start();
+
     rl.prompt();
 
     rl.on('line', async (line) => {
       const input = line.trim();
-      
-      if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
-        const prefix = (new Date()).toISOString().slice(0, 16).replace(':', '');
-        await saveMeetingOutputs(transcriptManager, aiClient, {
-          prefix,
-          skipLlm: process.env.SKIP_LLM === 'true',
-        });
 
+      if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
+        await session.stop({ save: true });
         shutdown();
         return;
       }
 
       if (input.toLowerCase() === 'history') {
         console.log('\n--- Meeting History ---');
-        console.log(transcriptManager.getTranscript());
+        console.log(session.getTranscript());
         console.log('------------------------\n');
         rl.prompt();
         return;
@@ -105,7 +61,7 @@ async function startApp() {
       if (input) {
         process.stdout.write('Agent is thinking...\n');
         try {
-          const response = await aiClient.query(input);
+          const response = await session.query(input);
           console.log(`\Agent: ${response}\n`);
         } catch (err) {
           console.error(`\nError querying agent: ${err.message}\n`);
@@ -122,7 +78,6 @@ async function startApp() {
 
 function shutdown() {
   console.log('\nShutting down gracefully...');
-  deviceManager.stopAll();
   rl.close();
   process.exit(0);
 }
@@ -130,10 +85,5 @@ function shutdown() {
 // Handle signals
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-
-// Create meetings directory if it doesn't exist
-if (!fs.existsSync('meetings')) {
-  fs.mkdirSync('meetings');
-}
 
 startApp();
