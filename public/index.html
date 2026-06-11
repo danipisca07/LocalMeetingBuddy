@@ -29,8 +29,57 @@
     <main class="tab-content">
       <!-- Meeting Live Tab -->
       <section id="tab-live" class="tab-pane active">
-        <div class="placeholder">
-          <p>Disponibile nella fase 1</p>
+        <div class="live-meeting">
+          <!-- Control Panel -->
+          <div class="live-control-panel">
+            <div class="status-row">
+              <div class="status-badge" id="meeting-status-badge">
+                <span class="status-indicator" id="status-indicator"></span>
+                <span class="status-text" id="status-text">Inattivo</span>
+              </div>
+              <div class="status-message" id="status-message"></div>
+              <div class="control-buttons">
+                <button id="btn-start-meeting" class="btn btn-primary">Avvia</button>
+                <button id="btn-stop-meeting" class="btn btn-danger" disabled>Termina</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Two-panel layout -->
+          <div class="live-panels">
+            <!-- Transcript Panel -->
+            <div class="panel transcript-panel">
+              <div class="panel-header">
+                <h3>Trascrizione</h3>
+              </div>
+              <div class="panel-body">
+                <div id="transcript-display" class="transcript-display"></div>
+              </div>
+            </div>
+
+            <!-- AI Chat Panel -->
+            <div class="panel chat-panel">
+              <div class="panel-header">
+                <h3>Chat AI</h3>
+              </div>
+              <div class="panel-body">
+                <div id="chat-display" class="chat-display"></div>
+                <div class="chat-input-area">
+                  <input
+                    type="text"
+                    id="chat-input"
+                    class="chat-input"
+                    placeholder="Fai una domanda…"
+                    disabled
+                  >
+                  <button id="btn-send-chat" class="btn btn-primary" disabled>Invia</button>
+                </div>
+                <div id="chat-thinking" class="chat-thinking" style="display: none;">
+                  L'agente sta pensando…
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

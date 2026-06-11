@@ -24,6 +24,8 @@ class WebSocketClient {
         console.log('WebSocket connected');
         this.reconnectAttempts = 0;
         this.updateConnectionStatus(true);
+        // Request current transcript on reconnect
+        this.send({ command: 'getTranscript' });
       };
 
       this.ws.onmessage = (event) => {
@@ -105,27 +107,173 @@ class WebSocketClient {
 const wsUrl = `ws://${window.location.host}/ws`;
 const wsClient = new WebSocketClient(wsUrl);
 
-// Register default message handlers (will be populated by phases)
+// Live Meeting State
+let currentMeetingState = 'idle';
+let isAwaitingAiResponse = false;
+
+/**
+ * Update meeting status UI
+ */
+function updateMeetingStatus(state, message) {
+  currentMeetingState = state;
+
+  const badge = document.getElementById('meeting-status-badge');
+  const statusText = document.getElementById('status-text');
+  const statusMessage = document.getElementById('status-message');
+  const btnStart = document.getElementById('btn-start-meeting');
+  const btnStop = document.getElementById('btn-stop-meeting');
+  const chatInput = document.getElementById('chat-input');
+  const btnSend = document.getElementById('btn-send-chat');
+
+  // Update badge state
+  badge.className = `status-badge ${state}`;
+
+  // Map state to display text
+  const stateNames = {
+    'idle': 'Inattivo',
+    'starting': 'Avviamento…',
+    'running': 'In corso',
+    'stopping': 'Arresto…',
+    'stopped': 'Interrotto',
+    'error': 'Errore'
+  };
+
+  statusText.textContent = stateNames[state] || state;
+  statusMessage.textContent = message || '';
+
+  // Update button states
+  const isTransitioning = state === 'starting' || state === 'stopping';
+  const isIdle = state === 'idle' || state === 'stopped' || state === 'error';
+  const isRunning = state === 'running';
+
+  btnStart.disabled = !isIdle || isTransitioning;
+  btnStop.disabled = !isRunning || isTransitioning;
+
+  // Update chat input state
+  chatInput.disabled = !isRunning;
+  btnSend.disabled = !isRunning || isAwaitingAiResponse;
+}
+
+/**
+ * Append a transcription entry to the transcript display
+ */
+function appendTranscriptionEntry(source, text) {
+  const display = document.getElementById('transcript-display');
+
+  // Create and append text node
+  const entry = document.createElement('div');
+  entry.className = 'transcript-entry';
+
+  const label = document.createElement('span');
+  label.className = 'source-label';
+  label.textContent = `[${source}]:`;
+
+  entry.appendChild(label);
+  entry.appendChild(document.createTextNode(` ${text}`));
+
+  display.appendChild(entry);
+
+  // Auto-scroll to bottom
+  display.scrollTop = display.scrollHeight;
+}
+
+/**
+ * Repopulate transcript from a full transcript text
+ */
+function populateTranscript(fullTranscript) {
+  const display = document.getElementById('transcript-display');
+  display.innerHTML = ''; // Clear existing
+
+  if (!fullTranscript) return;
+
+  // Parse transcript lines and rebuild display
+  const lines = fullTranscript.split('\n');
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    // Expected format: "[source]: text"
+    const match = line.match(/^\[([^\]]+)\]:\s*(.*)/);
+    if (match) {
+      const source = match[1];
+      const text = match[2];
+      appendTranscriptionEntry(source, text);
+    }
+  }
+
+  // Auto-scroll to bottom
+  display.scrollTop = display.scrollHeight;
+}
+
+/**
+ * Append a chat message
+ */
+function appendChatMessage(role, text) {
+  const display = document.getElementById('chat-display');
+
+  const msg = document.createElement('div');
+  msg.className = `chat-message ${role}`;
+
+  const label = document.createElement('div');
+  label.className = 'message-label';
+  label.textContent = role === 'user' ? 'Tu:' : 'Agent:';
+
+  msg.appendChild(label);
+  msg.appendChild(document.createTextNode(text));
+
+  display.appendChild(msg);
+
+  // Auto-scroll to bottom
+  display.scrollTop = display.scrollHeight;
+}
+
+/**
+ * Append an error message in chat
+ */
+function appendChatError(text) {
+  const display = document.getElementById('chat-display');
+
+  const msg = document.createElement('div');
+  msg.className = 'chat-message error';
+  msg.textContent = `Errore: ${text}`;
+
+  display.appendChild(msg);
+
+  // Auto-scroll to bottom
+  display.scrollTop = display.scrollHeight;
+}
+
+// Register message handlers for Phase 1
 wsClient.registerHandler('transcription', (data) => {
   console.log('Transcription received:', data);
+  appendTranscriptionEntry(data.source, data.text);
 });
 
 wsClient.registerHandler('status', (data) => {
   console.log('Status update:', data);
+  updateMeetingStatus(data.state, data.message);
 });
 
 wsClient.registerHandler('transcript', (data) => {
-  console.log('Transcript:', data);
+  console.log('Transcript received:', data);
+  populateTranscript(data.text);
 });
 
 wsClient.registerHandler('ai-response', (data) => {
   console.log('AI response:', data);
+  document.getElementById('chat-thinking').style.display = 'none';
+  isAwaitingAiResponse = false;
+  appendChatMessage('agent', data.text);
+  updateButtonState();
 });
 
 wsClient.registerHandler('ai-error', (data) => {
   console.error('AI error:', data);
+  document.getElementById('chat-thinking').style.display = 'none';
+  isAwaitingAiResponse = false;
+  appendChatError(data.message);
+  updateButtonState();
 });
 
+// Keep existing handlers for phases 2+
 wsClient.registerHandler('batch-progress', (data) => {
   console.log('Batch progress:', data);
 });
@@ -133,6 +281,58 @@ wsClient.registerHandler('batch-progress', (data) => {
 wsClient.registerHandler('error', (data) => {
   console.error('Server error:', data);
 });
+
+/**
+ * Update button state based on current conditions
+ */
+function updateButtonState() {
+  const btnSend = document.getElementById('btn-send-chat');
+  const isRunning = currentMeetingState === 'running';
+  btnSend.disabled = !isRunning || isAwaitingAiResponse;
+}
+
+/**
+ * Handle start meeting button click
+ */
+function handleStartMeeting() {
+  wsClient.send({ command: 'startMeeting' });
+}
+
+/**
+ * Handle stop meeting button click
+ */
+function handleStopMeeting() {
+  wsClient.send({ command: 'stopMeeting' });
+}
+
+/**
+ * Handle chat send button click
+ */
+function handleSendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  appendChatMessage('user', text);
+  input.value = '';
+
+  isAwaitingAiResponse = true;
+  updateButtonState();
+  document.getElementById('chat-thinking').style.display = 'block';
+
+  wsClient.send({ command: 'query', text });
+}
+
+/**
+ * Handle Enter key in chat input
+ */
+function handleChatInputKeydown(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    handleSendChat();
+  }
+}
 
 // Tab management
 function initializeTabs() {
@@ -157,8 +357,41 @@ function initializeTabs() {
   });
 }
 
+/**
+ * Initialize Phase 1: Live Meeting
+ */
+function initializeLiveMeeting() {
+  const btnStart = document.getElementById('btn-start-meeting');
+  const btnStop = document.getElementById('btn-stop-meeting');
+  const btnSend = document.getElementById('btn-send-chat');
+  const chatInput = document.getElementById('chat-input');
+
+  if (btnStart) {
+    btnStart.addEventListener('click', handleStartMeeting);
+  }
+
+  if (btnStop) {
+    btnStop.addEventListener('click', handleStopMeeting);
+  }
+
+  if (btnSend) {
+    btnSend.addEventListener('click', handleSendChat);
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener('keydown', handleChatInputKeydown);
+  }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initializeTabs();
+  initializeLiveMeeting();
+
+  // On connection, request current transcript
+  setTimeout(() => {
+    wsClient.send({ command: 'getTranscript' });
+  }, 500);
+
   console.log('MeetingTwin frontend initialized');
 });

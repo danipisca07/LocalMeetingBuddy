@@ -5,9 +5,15 @@ const path = require('path');
 const fs = require('fs');
 const { WebSocketServer } = require('ws');
 const { exec } = require('child_process');
+const { MeetingSession } = require('./src/meeting-session');
 
 const app = express();
 const port = process.env.GUI_PORT || 3000;
+
+// Meeting session state
+let meetingSession = null;
+let meetingState = 'idle'; // 'idle', 'starting', 'running', 'stopping', 'stopped', 'error'
+let lastBroadcastState = 'idle';
 
 // Middleware
 app.use(express.json());
@@ -24,8 +30,8 @@ const server = http.createServer(app);
 // Setup WebSocket server
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-// WebSocket helper to broadcast to all connected clients
-function broadcast(message) {
+// Helper function to broadcast messages to all connected clients
+function broadcastMessage(message) {
   wss.clients.forEach((client) => {
     if (client.readyState === require('ws').OPEN) {
       client.send(JSON.stringify(message));
@@ -35,43 +41,33 @@ function broadcast(message) {
 
 // WebSocket connection handling
 wss.on('connection', (ws) => {
+  // Send current status to newly connected client
+  ws.send(JSON.stringify({
+    type: 'status',
+    data: { state: meetingState }
+  }));
+
   // Handle incoming messages from client
-  ws.on('message', (data) => {
+  ws.on('message', async (data) => {
     try {
       const msg = JSON.parse(data);
 
       // Dispatcher for commands
       switch (msg.command) {
         case 'startMeeting':
-          // Placeholder: will be implemented in phase 1
-          ws.send(JSON.stringify({
-            type: 'error',
-            data: { message: 'startMeeting not yet implemented' }
-          }));
+          await handleStartMeeting(ws);
           break;
 
         case 'stopMeeting':
-          // Placeholder: will be implemented in phase 1
-          ws.send(JSON.stringify({
-            type: 'error',
-            data: { message: 'stopMeeting not yet implemented' }
-          }));
+          await handleStopMeeting(ws);
           break;
 
         case 'query':
-          // Placeholder: will be implemented in phase 1
-          ws.send(JSON.stringify({
-            type: 'error',
-            data: { message: 'query not yet implemented' }
-          }));
+          await handleQuery(ws, msg.text);
           break;
 
         case 'getTranscript':
-          // Placeholder: will be implemented in phase 1
-          ws.send(JSON.stringify({
-            type: 'error',
-            data: { message: 'getTranscript not yet implemented' }
-          }));
+          handleGetTranscript(ws);
           break;
 
         case 'startBatch':
@@ -105,6 +101,175 @@ wss.on('connection', (ws) => {
     // Handle client disconnect if needed
   });
 });
+
+/**
+ * Handle startMeeting command
+ */
+async function handleStartMeeting(ws) {
+  // Check if a meeting is already running or batch job is active
+  if (meetingSession && meetingSession.isRunning) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Meeting già in corso' }
+    }));
+    return;
+  }
+
+  // Check for transition states (starting/stopping)
+  if (meetingState === 'starting' || meetingState === 'stopping') {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Operazione in corso, riprovare' }
+    }));
+    return;
+  }
+
+  // Update state
+  meetingState = 'starting';
+  lastBroadcastState = 'starting';
+  broadcastMessage({ type: 'status', data: { state: 'starting' } });
+
+  try {
+    // Create new meeting session with config from environment
+    meetingSession = new MeetingSession({
+      transcriptionProvider: process.env.TRANSCRIPTION_PROVIDER,
+      deepgramApiKey: process.env.DEEPGRAM_API_KEY,
+      isLiveMeeting: process.env.IS_LIVE_MEETING === 'true',
+      audioDeviceIdMic: process.env.AUDIO_DEVICE_ID_MIC,
+      audioDeviceIdSystem: process.env.AUDIO_DEVICE_ID_SYSTEM,
+      skipLlm: process.env.SKIP_LLM === 'true',
+    });
+
+    // Wire up events
+    meetingSession.on('transcription', (evt) => {
+      broadcastMessage({ type: 'transcription', data: evt });
+    });
+
+    meetingSession.on('status', (evt) => {
+      meetingState = evt.state;
+      lastBroadcastState = evt.state;
+      broadcastMessage({ type: 'status', data: evt });
+    });
+
+    meetingSession.on('error', (err) => {
+      console.error('MeetingSession error:', err);
+      meetingState = 'error';
+      lastBroadcastState = 'error';
+      broadcastMessage({
+        type: 'status',
+        data: { state: 'error', message: err.message }
+      });
+      meetingSession = null;
+    });
+
+    // Start the session
+    await meetingSession.start();
+    meetingState = 'running';
+    lastBroadcastState = 'running';
+  } catch (err) {
+    console.error('Failed to start meeting:', err);
+    meetingState = 'error';
+    lastBroadcastState = 'error';
+    broadcastMessage({
+      type: 'status',
+      data: { state: 'error', message: err.message }
+    });
+    meetingSession = null;
+  }
+}
+
+/**
+ * Handle stopMeeting command
+ */
+async function handleStopMeeting(ws) {
+  if (!meetingSession || !meetingSession.isRunning) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Nessun meeting in corso' }
+    }));
+    return;
+  }
+
+  // Check for transition states
+  if (meetingState === 'starting' || meetingState === 'stopping') {
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: { message: 'Operazione in corso, riprovare' }
+    }));
+    return;
+  }
+
+  meetingState = 'stopping';
+  lastBroadcastState = 'stopping';
+  broadcastMessage({
+    type: 'status',
+    data: { state: 'stopping', message: 'Salvataggio in corso…' }
+  });
+
+  try {
+    await meetingSession.stop({ save: true });
+
+    // Include saved file paths in the final status message
+    let message = 'Meeting salvato';
+    if (meetingSession.lastSavePrefix) {
+      const prefix = meetingSession.lastSavePrefix;
+      message += ` in meetings/${prefix}-meeting-*`;
+    }
+
+    meetingState = 'stopped';
+    lastBroadcastState = 'stopped';
+    // The session.stop() already emits status event, so status should be broadcast already
+    // But ensure it's sent with any additional info
+    meetingSession = null;
+  } catch (err) {
+    console.error('Failed to stop meeting:', err);
+    meetingState = 'error';
+    lastBroadcastState = 'error';
+    broadcastMessage({
+      type: 'status',
+      data: { state: 'error', message: `Errore durante il salvataggio: ${err.message}` }
+    });
+    meetingSession = null;
+  }
+}
+
+/**
+ * Handle query command
+ */
+async function handleQuery(ws, queryText) {
+  if (!meetingSession || !meetingSession.isRunning) {
+    ws.send(JSON.stringify({
+      type: 'ai-error',
+      data: { message: 'Nessun meeting in corso' }
+    }));
+    return;
+  }
+
+  try {
+    const response = await meetingSession.query(queryText);
+    broadcastMessage({
+      type: 'ai-response',
+      data: { text: response }
+    });
+  } catch (err) {
+    console.error('Query error:', err);
+    broadcastMessage({
+      type: 'ai-error',
+      data: { message: err.message }
+    });
+  }
+}
+
+/**
+ * Handle getTranscript command
+ */
+function handleGetTranscript(ws) {
+  const transcript = meetingSession ? meetingSession.getTranscript() : '';
+  ws.send(JSON.stringify({
+    type: 'transcript',
+    data: { text: transcript }
+  }));
+}
 
 // Create meetings directory if it doesn't exist
 if (!fs.existsSync('meetings')) {

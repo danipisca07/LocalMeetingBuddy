@@ -40,6 +40,7 @@ class MeetingSession extends EventEmitter {
     this.deviceManager = null;
     this.transcriptManager = new TranscriptManager();
     this.aiClient = createAIService(this.transcriptManager);
+    this.lastSavePrefix = null; // Set when saving outputs
   }
 
   /**
@@ -154,6 +155,7 @@ class MeetingSession extends EventEmitter {
         prefix,
         skipLlm: this.config.skipLlm,
       });
+      this.lastSavePrefix = prefix;
     }
 
     this._isRunning = false;
