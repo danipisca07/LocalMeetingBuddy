@@ -64,6 +64,7 @@ const i18n = (() => {
    * Translate all static elements within root:
    *   [data-i18n]              → textContent
    *   [data-i18n-placeholder]  → placeholder attribute
+   *   [data-i18n-title]        → title attribute
    */
   function apply(root = document) {
     root.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -71,6 +72,9 @@ const i18n = (() => {
     });
     root.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
       el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+    });
+    root.querySelectorAll('[data-i18n-title]').forEach((el) => {
+      el.setAttribute('title', t(el.getAttribute('data-i18n-title')));
     });
     document.documentElement.lang = lang;
   }

@@ -291,6 +291,8 @@ function appendBatchProgressLine(text, type = 'info') {
 
   // Auto-scroll to bottom
   logDisplay.scrollTop = logDisplay.scrollHeight;
+
+  return line;
 }
 
 /**
@@ -348,6 +350,8 @@ wsClient.registerHandler('batch-progress', (data) => {
 wsClient.registerHandler('error', (data) => {
   console.error('Server error:', data);
   appendBatchProgressLine(i18n.t('batch.error', { message: data.message }), 'error');
+  batchInProgress = false;
+  updateBatchButtonState();
 });
 
 /**
@@ -435,18 +439,90 @@ function updateBatchButtonState() {
   }
 }
 
+// File selected via drag & drop or file picker (File object)
+let selectedBatchFile = null;
+
 /**
- * Handle batch transcription start button click
+ * Set or clear the file selected for batch transcription, updating the dropzone UI
  */
-function handleStartBatch() {
-  const fileInput = document.getElementById('batch-file-path');
+function setSelectedBatchFile(file) {
+  selectedBatchFile = file || null;
+
+  const idleView = document.getElementById('batch-dropzone-idle');
+  const selectedView = document.getElementById('batch-dropzone-selected');
+  const fileNameLabel = document.getElementById('batch-file-name');
+
+  if (idleView) idleView.classList.toggle('hidden', !!selectedBatchFile);
+  if (selectedView) selectedView.classList.toggle('hidden', !selectedBatchFile);
+  if (fileNameLabel) {
+    fileNameLabel.textContent = selectedBatchFile
+      ? `${selectedBatchFile.name} (${formatFileSize(selectedBatchFile.size)})`
+      : '';
+  }
+}
+
+/**
+ * Format a byte count for display (e.g. "12.3 MB")
+ */
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 'B';
+  for (const u of units) {
+    if (value < 1024) break;
+    value /= 1024;
+    unit = u;
+  }
+  return `${value.toFixed(1)} ${unit}`;
+}
+
+/**
+ * Upload the selected file to the server, reporting progress (0-100).
+ * Resolves with the server-side path to pass to startBatch.
+ */
+function uploadBatchFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const body = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && body.path) {
+          resolve(body.path);
+        } else {
+          reject(new Error(body.error || `HTTP ${xhr.status}`));
+        }
+      } catch (err) {
+        reject(new Error(`HTTP ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(file);
+  });
+}
+
+/**
+ * Handle batch transcription start button click:
+ * upload the selected file, then start the transcription job
+ */
+async function handleStartBatch() {
   const providerSelect = document.getElementById('batch-provider');
   const trackInput = document.getElementById('batch-track');
   const skipLlmCheckbox = document.getElementById('batch-skip-llm');
 
-  const filePath = fileInput ? fileInput.value.trim() : '';
-  if (!filePath) {
-    alert(i18n.t('batch.noFilePath'));
+  if (!selectedBatchFile) {
+    alert(i18n.t('batch.noFile'));
     return;
   }
 
@@ -454,8 +530,31 @@ function handleStartBatch() {
   const track = trackInput && trackInput.value ? parseInt(trackInput.value, 10) : null;
   const skipLlm = skipLlmCheckbox ? skipLlmCheckbox.checked : false;
 
-  // Clear log and start
+  // Clear log and upload the file first
   clearBatchLog();
+  batchInProgress = true;
+  updateBatchButtonState();
+
+  const progressLine = appendBatchProgressLine(i18n.t('batch.uploading', { pct: 0 }));
+
+  let filePath;
+  try {
+    filePath = await uploadBatchFile(selectedBatchFile, (pct) => {
+      if (progressLine) {
+        progressLine.textContent = i18n.t('batch.uploading', { pct });
+      }
+    });
+  } catch (err) {
+    appendBatchProgressLine(i18n.t('batch.uploadError', { message: err.message }), 'error');
+    batchInProgress = false;
+    updateBatchButtonState();
+    return;
+  }
+
+  if (progressLine) {
+    progressLine.textContent = i18n.t('batch.uploaded');
+  }
+
   wsClient.send({
     command: 'startBatch',
     filePath,
@@ -498,6 +597,60 @@ function initializeBatchTranscription() {
   const btnTranscribe = document.getElementById('btn-start-batch');
   if (btnTranscribe) {
     btnTranscribe.addEventListener('click', handleStartBatch);
+  }
+
+  const dropzone = document.getElementById('batch-dropzone');
+  const fileInput = document.getElementById('batch-file-input');
+  const btnBrowse = document.getElementById('btn-browse-file');
+  const btnClear = document.getElementById('btn-clear-file');
+
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        setSelectedBatchFile(fileInput.files[0]);
+      }
+    });
+  }
+
+  if (btnBrowse && fileInput) {
+    btnBrowse.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+  }
+
+  if (btnClear && fileInput) {
+    btnClear.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.value = '';
+      setSelectedBatchFile(null);
+    });
+  }
+
+  if (dropzone && fileInput) {
+    // Clicking anywhere on the empty dropzone opens the file picker
+    dropzone.addEventListener('click', () => {
+      if (!selectedBatchFile) {
+        fileInput.click();
+      }
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        setSelectedBatchFile(e.dataTransfer.files[0]);
+      }
+    });
   }
 }
 

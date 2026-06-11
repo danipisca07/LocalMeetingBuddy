@@ -96,14 +96,18 @@
           <!-- Control Panel -->
           <div class="batch-control-panel">
             <div class="form-group">
-              <label for="batch-file-path" data-i18n="batch.fileLabel">File:</label>
-              <input
-                type="text"
-                id="batch-file-path"
-                class="batch-input"
-                data-i18n-placeholder="batch.filePlaceholder"
-                placeholder="C:\percorso\file.mp4"
-              >
+              <label data-i18n="batch.fileLabel">File:</label>
+              <input type="file" id="batch-file-input" accept="audio/*,video/*" class="hidden">
+              <div id="batch-dropzone" class="dropzone">
+                <div id="batch-dropzone-idle" class="dropzone-idle">
+                  <span class="dropzone-hint" data-i18n="batch.dropHint">Trascina qui il file audio/video</span>
+                  <button type="button" id="btn-browse-file" class="btn btn-secondary" data-i18n="batch.browse">Sfoglia…</button>
+                </div>
+                <div id="batch-dropzone-selected" class="dropzone-selected hidden">
+                  <span id="batch-file-name" class="dropzone-file-name"></span>
+                  <button type="button" id="btn-clear-file" class="dropzone-clear" data-i18n-title="batch.removeFile" title="Rimuovi file">✕</button>
+                </div>
+              </div>
             </div>
 
             <div class="form-row">

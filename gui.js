@@ -28,6 +28,9 @@ let batchJob = null; // { jobId, state }
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Directory for files uploaded from the browser (drag & drop / file picker)
+const uploadsDir = path.join(__dirname, 'uploads');
+
 /**
  * Helper: detect if device name suggests it's a loopback/stereo mix device
  * Based on naming patterns from scripts/check-audio.js
@@ -45,6 +48,56 @@ function isLoopbackDevice(deviceName) {
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
+});
+
+/**
+ * POST /api/upload
+ * Receive a raw file body (streamed) and save it into the uploads directory.
+ * The original filename is passed via the X-Filename header (URL-encoded).
+ * Returns { path } to be used with the startBatch command.
+ */
+app.post('/api/upload', (req, res) => {
+  const rawName = req.headers['x-filename'];
+  if (!rawName) {
+    return res.status(400).json({ error: 'X-Filename header required' });
+  }
+
+  let originalName;
+  try {
+    originalName = decodeURIComponent(rawName);
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid X-Filename header' });
+  }
+
+  // Keep only the basename and strip characters unsafe for the filesystem
+  const safeName = path.basename(originalName).replace(/[^\w.\- ]/g, '_');
+  if (!safeName) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+
+  const destPath = path.join(uploadsDir, `${Date.now().toString(36)}-${safeName}`);
+  const out = fs.createWriteStream(destPath);
+
+  const cleanup = () => {
+    out.destroy();
+    fs.unlink(destPath, () => {});
+  };
+
+  req.pipe(out);
+
+  out.on('finish', () => {
+    res.json({ path: destPath });
+  });
+
+  out.on('error', (err) => {
+    console.error('Upload write error:', err);
+    cleanup();
+    res.status(500).json({ error: err.message });
+  });
+
+  req.on('aborted', () => {
+    cleanup();
+  });
 });
 
 /**
@@ -446,6 +499,13 @@ async function handleStartBatch(ws, msg) {
   // Apply current config to environment before transcribing
   configManager.applyToEnv();
 
+  // Uploaded files are temporary: remove them once the job is over
+  const cleanupUpload = () => {
+    if (resolvedPath.startsWith(uploadsDir + path.sep)) {
+      fs.unlink(resolvedPath, () => {});
+    }
+  };
+
   // Fire transcription without blocking
   transcribeFile(resolvedPath, {
     provider,
@@ -462,6 +522,7 @@ async function handleStartBatch(ws, msg) {
   }).then(() => {
     // Success: job complete
     batchJob = null;
+    cleanupUpload();
   }).catch((err) => {
     // Error: broadcast error state
     broadcastMessage({
@@ -469,12 +530,18 @@ async function handleStartBatch(ws, msg) {
       data: { jobId, state: 'error', message: err.message }
     });
     batchJob = null;
+    cleanupUpload();
   });
 }
 
 // Create meetings directory if it doesn't exist
 if (!fs.existsSync('meetings')) {
   fs.mkdirSync('meetings');
+}
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
 }
 
 // Start server
