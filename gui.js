@@ -93,13 +93,13 @@ app.post('/api/config', (req, res) => {
   // Check if meeting or batch job is active
   if (meetingSession && meetingSession.isRunning) {
     return res.status(409).json({
-      error: 'Impossibile modificare la configurazione durante un meeting o una trascrizione',
+      error: 'Cannot change configuration during a meeting or transcription',
     });
   }
 
   if (batchJob) {
     return res.status(409).json({
-      error: 'Impossibile modificare la configurazione durante un meeting o una trascrizione',
+      error: 'Cannot change configuration during a meeting or transcription',
     });
   }
 
@@ -139,7 +139,7 @@ app.get('/api/meetings/:prefix', async (req, res) => {
     console.error('Failed to get meeting:', err);
     // Return 404 for not found, 400 for invalid prefix
     const statusCode = err.message.includes('Invalid prefix') ? 400 : 404;
-    res.status(statusCode).json({ error: 'Meeting non trovato' });
+    res.status(statusCode).json({ error: 'Meeting not found' });
   }
 });
 
@@ -225,7 +225,7 @@ async function handleStartMeeting(ws) {
   if (batchJob) {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Operazione già in corso' }
+      data: { message: 'Operation already in progress' }
     }));
     return;
   }
@@ -233,7 +233,7 @@ async function handleStartMeeting(ws) {
   if (meetingSession && meetingSession.isRunning) {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Meeting già in corso' }
+      data: { message: 'Meeting already in progress' }
     }));
     return;
   }
@@ -242,7 +242,7 @@ async function handleStartMeeting(ws) {
   if (meetingState === 'starting' || meetingState === 'stopping') {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Operazione in corso, riprovare' }
+      data: { message: 'Operation in progress, retry' }
     }));
     return;
   }
@@ -312,7 +312,7 @@ async function handleStopMeeting(ws) {
   if (!meetingSession || !meetingSession.isRunning) {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Nessun meeting in corso' }
+      data: { message: 'No meeting in progress' }
     }));
     return;
   }
@@ -321,7 +321,7 @@ async function handleStopMeeting(ws) {
   if (meetingState === 'starting' || meetingState === 'stopping') {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Operazione in corso, riprovare' }
+      data: { message: 'Operation in progress, retry' }
     }));
     return;
   }
@@ -330,17 +330,17 @@ async function handleStopMeeting(ws) {
   lastBroadcastState = 'stopping';
   broadcastMessage({
     type: 'status',
-    data: { state: 'stopping', message: 'Salvataggio in corso…' }
+    data: { state: 'stopping', message: 'Saving…' }
   });
 
   try {
     await meetingSession.stop({ save: true });
 
     // Include saved file paths in the final status message
-    let message = 'Meeting salvato';
+    let message = 'Meeting saved';
     if (meetingSession.lastSavePrefix) {
       const prefix = meetingSession.lastSavePrefix;
-      message += ` in meetings/${prefix}-meeting-*`;
+      message += ` to meetings/${prefix}-meeting-*`;
     }
 
     meetingState = 'stopped';
@@ -354,7 +354,7 @@ async function handleStopMeeting(ws) {
     lastBroadcastState = 'error';
     broadcastMessage({
       type: 'status',
-      data: { state: 'error', message: `Errore durante il salvataggio: ${err.message}` }
+      data: { state: 'error', message: `Error while saving: ${err.message}` }
     });
     meetingSession = null;
   }
@@ -367,7 +367,7 @@ async function handleQuery(ws, queryText) {
   if (!meetingSession || !meetingSession.isRunning) {
     ws.send(JSON.stringify({
       type: 'ai-error',
-      data: { message: 'Nessun meeting in corso' }
+      data: { message: 'No meeting in progress' }
     }));
     return;
   }
@@ -406,7 +406,7 @@ async function handleStartBatch(ws, msg) {
   if (batchJob) {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Operazione già in corso' }
+      data: { message: 'Operation already in progress' }
     }));
     return;
   }
@@ -414,7 +414,7 @@ async function handleStartBatch(ws, msg) {
   if (meetingSession && meetingSession.isRunning) {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'Operazione già in corso' }
+      data: { message: 'Operation already in progress' }
     }));
     return;
   }
@@ -425,7 +425,7 @@ async function handleStartBatch(ws, msg) {
   if (!filePath || typeof filePath !== 'string') {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: 'filePath richiesto' }
+      data: { message: 'filePath required' }
     }));
     return;
   }
@@ -434,7 +434,7 @@ async function handleStartBatch(ws, msg) {
   if (!fs.existsSync(resolvedPath)) {
     ws.send(JSON.stringify({
       type: 'error',
-      data: { message: `File non trovato: ${resolvedPath}` }
+      data: { message: `File not found: ${resolvedPath}` }
     }));
     return;
   }

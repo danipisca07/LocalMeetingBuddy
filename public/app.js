@@ -90,15 +90,18 @@ class WebSocketClient {
   updateConnectionStatus(connected) {
     const statusElement = document.getElementById('connection-status');
     if (statusElement) {
+      const textEl = statusElement.querySelector('.indicator-text');
+      const key = connected ? 'connection.connected' : 'connection.disconnected';
       if (connected) {
         statusElement.classList.remove('disconnected');
         statusElement.classList.add('connected');
-        statusElement.querySelector('.indicator-text').textContent = 'Connesso';
       } else {
         statusElement.classList.remove('connected');
         statusElement.classList.add('disconnected');
-        statusElement.querySelector('.indicator-text').textContent = 'Disconnesso';
       }
+      // Keep the data-i18n key in sync so a language switch re-translates correctly
+      textEl.setAttribute('data-i18n', key);
+      textEl.textContent = i18n.t(key);
     }
   }
 }
@@ -109,6 +112,7 @@ const wsClient = new WebSocketClient(wsUrl);
 
 // Live Meeting State
 let currentMeetingState = 'idle';
+let lastStatusMessage = '';
 let isAwaitingAiResponse = false;
 
 /**
@@ -128,18 +132,13 @@ function updateMeetingStatus(state, message) {
   // Update badge state
   badge.className = `status-badge ${state}`;
 
-  // Map state to display text
-  const stateNames = {
-    'idle': 'Inattivo',
-    'starting': 'Avviamento…',
-    'running': 'In corso',
-    'stopping': 'Arresto…',
-    'stopped': 'Interrotto',
-    'error': 'Errore'
-  };
+  // Remember last message so we can re-render on a language switch
+  lastStatusMessage = message || '';
 
-  statusText.textContent = stateNames[state] || state;
-  statusMessage.textContent = message || '';
+  // Map state to display text via i18n (falls back to the raw state)
+  const translated = i18n.t(`status.${state}`);
+  statusText.textContent = translated === `status.${state}` ? state : translated;
+  statusMessage.textContent = lastStatusMessage;
 
   // Update button states
   const isTransitioning = state === 'starting' || state === 'stopping';
@@ -214,7 +213,7 @@ function appendChatMessage(role, text) {
 
   const label = document.createElement('div');
   label.className = 'message-label';
-  label.textContent = role === 'user' ? 'Tu:' : 'Agent:';
+  label.textContent = role === 'user' ? i18n.t('chat.you') : i18n.t('chat.agent');
 
   msg.appendChild(label);
   msg.appendChild(document.createTextNode(text));
@@ -233,7 +232,7 @@ function appendChatError(text) {
 
   const msg = document.createElement('div');
   msg.className = 'chat-message error';
-  msg.textContent = `Errore: ${text}`;
+  msg.textContent = `${i18n.t('chat.errorPrefix')} ${text}`;
 
   display.appendChild(msg);
 
@@ -309,37 +308,37 @@ wsClient.registerHandler('batch-progress', (data) => {
 
   switch (data.state) {
     case 'probing':
-      appendBatchProgressLine('Analisi file…');
+      appendBatchProgressLine(i18n.t('batch.probing'));
       batchInProgress = true;
       break;
     case 'decoding':
-      appendBatchProgressLine(`Decodifica traccia ${data.track}/${data.totalTracks}…`);
+      appendBatchProgressLine(i18n.t('batch.decoding', { track: data.track, total: data.totalTracks }));
       break;
     case 'transcribing':
-      appendBatchProgressLine(`Trascrizione traccia ${data.track} (${data.durationSec}s di audio)…`);
+      appendBatchProgressLine(i18n.t('batch.transcribing', { track: data.track, sec: data.durationSec }));
       break;
     case 'transcription':
       appendBatchProgressLine(`[${data.label}]: ${data.text}`);
       break;
     case 'transcription-error':
-      appendBatchProgressLine(`Errore traccia ${data.track}: ${data.message}`, 'error');
+      appendBatchProgressLine(i18n.t('batch.transcriptionError', { track: data.track, message: data.message }), 'error');
       break;
     case 'track-done':
-      appendBatchProgressLine(`✔ Traccia ${data.track} completata`);
+      appendBatchProgressLine(i18n.t('batch.trackDone', { track: data.track }));
       break;
     case 'saving':
-      appendBatchProgressLine('Salvataggio in corso…');
+      appendBatchProgressLine(i18n.t('batch.saving'));
       break;
     case 'done':
-      appendBatchProgressLine(`✔ Completato → ${data.outputs.transcriptPath}`);
+      appendBatchProgressLine(i18n.t('batch.done', { path: data.outputs.transcriptPath }));
       if (data.outputs.recapPath) {
-        appendBatchProgressLine(`✔ Recap → ${data.outputs.recapPath}`);
+        appendBatchProgressLine(i18n.t('batch.recap', { path: data.outputs.recapPath }));
       }
       batchInProgress = false;
       updateBatchButtonState();
       break;
     case 'error':
-      appendBatchProgressLine(`Errore: ${data.message}`, 'error');
+      appendBatchProgressLine(i18n.t('batch.error', { message: data.message }), 'error');
       batchInProgress = false;
       updateBatchButtonState();
       break;
@@ -348,7 +347,7 @@ wsClient.registerHandler('batch-progress', (data) => {
 
 wsClient.registerHandler('error', (data) => {
   console.error('Server error:', data);
-  appendBatchProgressLine(`Errore: ${data.message}`, 'error');
+  appendBatchProgressLine(i18n.t('batch.error', { message: data.message }), 'error');
 });
 
 /**
@@ -447,7 +446,7 @@ function handleStartBatch() {
 
   const filePath = fileInput ? fileInput.value.trim() : '';
   if (!filePath) {
-    alert('Inserire il percorso del file');
+    alert(i18n.t('batch.noFilePath'));
     return;
   }
 
@@ -662,7 +661,7 @@ function updateProviderVisibility() {
  */
 async function handleRefreshDevices() {
   await loadDevices();
-  showConfigMessage('Dispositivi aggiornati', 'success');
+  showConfigMessage(i18n.t('config.devicesRefreshed'), 'success');
 }
 
 /**
@@ -715,16 +714,16 @@ async function handleSaveConfig() {
 
     if (!response.ok) {
       const error = await response.json();
-      showConfigMessage(error.error || 'Errore nel salvataggio', 'error');
+      showConfigMessage(error.error || i18n.t('config.saveError'), 'error');
       return;
     }
 
     const result = await response.json();
     currentConfig = result.config;
-    showConfigMessage('Configurazione salvata ✓', 'success');
+    showConfigMessage(i18n.t('config.saveSuccess'), 'success');
   } catch (err) {
     console.error('Error saving config:', err);
-    showConfigMessage(`Errore: ${err.message}`, 'error');
+    showConfigMessage(i18n.t('config.genericError', { message: err.message }), 'error');
   }
 }
 
@@ -787,7 +786,7 @@ function populateHistoryList(meetings) {
   if (meetings.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'viewer-placeholder';
-    empty.textContent = 'Nessun meeting salvato';
+    empty.textContent = i18n.t('history.empty');
     listContainer.appendChild(empty);
     return;
   }
@@ -799,9 +798,10 @@ function populateHistoryList(meetings) {
       item.classList.add('active');
     }
 
-    // Format date from mtimeMs using Italian locale
+    // Format date from mtimeMs using the active UI locale
     const date = new Date(meeting.mtimeMs);
-    const dateStr = date.toLocaleString('it-IT', {
+    const dateLocale = i18n.current() === 'en' ? 'en-US' : 'it-IT';
+    const dateStr = date.toLocaleString(dateLocale, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -832,7 +832,7 @@ function populateHistoryList(meetings) {
       const transcriptIcon = document.createElement('span');
       transcriptIcon.className = 'history-item-icon';
       transcriptIcon.textContent = '📄';
-      transcriptIcon.title = 'Transcript disponibile';
+      transcriptIcon.title = i18n.t('history.transcriptAvailable');
       icons.appendChild(transcriptIcon);
     }
 
@@ -840,7 +840,7 @@ function populateHistoryList(meetings) {
       const recapIcon = document.createElement('span');
       recapIcon.className = 'history-item-icon';
       recapIcon.textContent = '📝';
-      recapIcon.title = 'Recap disponibile';
+      recapIcon.title = i18n.t('history.recapAvailable');
       icons.appendChild(recapIcon);
     }
 
@@ -878,9 +878,10 @@ async function handleSelectMeeting(prefix) {
     });
     event.currentTarget?.classList.add('active');
 
-    // Update viewer header
+    // Update viewer header (drop data-i18n so a language switch won't overwrite the meeting name)
     const viewerTitle = document.getElementById('viewer-title');
     if (viewerTitle) {
+      viewerTitle.removeAttribute('data-i18n');
       viewerTitle.textContent = prefix;
     }
 
@@ -1001,8 +1002,36 @@ function setupHistoryAutoRefresh() {
   });
 }
 
+/**
+ * Re-render dynamic chrome that isn't covered by static [data-i18n] elements.
+ * Called after a language switch (i18n.apply() has already run).
+ */
+function onLanguageChange() {
+  updateMeetingStatus(currentMeetingState, lastStatusMessage);
+}
+
+/**
+ * Initialize i18n: detect language, load dictionary, translate the static DOM,
+ * and wire the language dropdown.
+ */
+async function initializeI18n() {
+  const select = document.getElementById('lang-select');
+  await i18n.load(i18n.detect());
+  i18n.apply();
+  if (select) {
+    select.value = i18n.current();
+    select.addEventListener('change', () => i18n.setLanguage(select.value));
+  }
+  i18n.setOnChange(onLanguageChange);
+
+  // Translate the initial meeting-status text (set dynamically, not via [data-i18n])
+  updateMeetingStatus(currentMeetingState, lastStatusMessage);
+}
+
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await initializeI18n();
+
   initializeTabs();
   initializeLiveMeeting();
   initializeBatchTranscription();

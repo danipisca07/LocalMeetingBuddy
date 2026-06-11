@@ -1,0 +1,98 @@
+{
+  "common": {
+    "refresh": "Aggiorna"
+  },
+  "connection": {
+    "connected": "Connesso",
+    "disconnected": "Disconnesso"
+  },
+  "tabs": {
+    "live": "Meeting Live",
+    "batch": "Trascrizione File",
+    "config": "Configurazione",
+    "history": "Storico"
+  },
+  "controls": {
+    "start": "Avvia",
+    "stop": "Termina",
+    "send": "Invia"
+  },
+  "status": {
+    "idle": "Inattivo",
+    "starting": "Avviamento…",
+    "running": "In corso",
+    "stopping": "Arresto…",
+    "stopped": "Interrotto",
+    "error": "Errore"
+  },
+  "panels": {
+    "transcript": "Trascrizione",
+    "chat": "Chat AI"
+  },
+  "chat": {
+    "placeholder": "Fai una domanda…",
+    "thinking": "L'agente sta pensando…",
+    "you": "Tu:",
+    "agent": "Agent:",
+    "errorPrefix": "Errore:"
+  },
+  "batch": {
+    "fileLabel": "File:",
+    "filePlaceholder": "C:\\percorso\\file.mp4",
+    "providerLabel": "Provider:",
+    "providerDefault": "default (da .env)",
+    "trackLabel": "Traccia:",
+    "trackPlaceholder": "tutte",
+    "skipLlm": "Salta recap LLM",
+    "transcribe": "Trascrivi",
+    "progressTitle": "Avanzamento",
+    "noFilePath": "Inserire il percorso del file",
+    "probing": "Analisi file…",
+    "decoding": "Decodifica traccia {track}/{total}…",
+    "transcribing": "Trascrizione traccia {track} ({sec}s di audio)…",
+    "transcriptionError": "Errore traccia {track}: {message}",
+    "trackDone": "✔ Traccia {track} completata",
+    "saving": "Salvataggio in corso…",
+    "done": "✔ Completato → {path}",
+    "recap": "✔ Recap → {path}",
+    "error": "Errore: {message}"
+  },
+  "config": {
+    "devicesTitle": "Dispositivi audio",
+    "micLabel": "Microfono:",
+    "systemLabel": "Audio sistema:",
+    "fromEnv": "— da .env —",
+    "loopbackHint": "★ candidato loopback",
+    "transcriptionTitle": "Trascrizione",
+    "providerLabel": "Provider:",
+    "deepgramLangLabel": "Lingua (Deepgram):",
+    "localLangLabel": "Lingua (locale):",
+    "whisperModelLabel": "Modello Whisper locale:",
+    "optionsTitle": "Opzioni",
+    "isLiveMeeting": "Meeting dal vivo (IS_LIVE_MEETING)",
+    "skipLlm": "Salta recap LLM (SKIP_LLM)",
+    "save": "Salva",
+    "note": "Le modifiche valgono per la sessione corrente della GUI e non scrivono il file .env.",
+    "devicesRefreshed": "Dispositivi aggiornati",
+    "saveError": "Errore nel salvataggio",
+    "saveSuccess": "Configurazione salvata ✓",
+    "genericError": "Errore: {message}"
+  },
+  "history": {
+    "savedTitle": "Meeting salvati",
+    "selectMeeting": "Seleziona un meeting",
+    "recapTab": "Recap",
+    "viewerPlaceholder": "Seleziona un meeting per visualizzare il contenuto",
+    "empty": "Nessun meeting salvato",
+    "transcriptAvailable": "Transcript disponibile",
+    "recapAvailable": "Recap disponibile"
+  },
+  "placeholders": {
+    "phase3": "Disponibile nella fase 3",
+    "phase4": "Disponibile nella fase 4"
+  },
+  "lang": {
+    "en": "English",
+    "it": "Italiano"
+  }
+}

@@ -11,18 +11,24 @@
     <!-- Header -->
     <header>
       <h1>MeetingTwin</h1>
-      <div id="connection-status" class="connection-indicator disconnected">
-        <span class="indicator-dot"></span>
-        <span class="indicator-text">Disconnesso</span>
+      <div class="header-controls">
+        <select id="lang-select" class="lang-select" aria-label="Language">
+          <option value="en" data-i18n="lang.en">English</option>
+          <option value="it" data-i18n="lang.it">Italiano</option>
+        </select>
+        <div id="connection-status" class="connection-indicator disconnected">
+          <span class="indicator-dot"></span>
+          <span class="indicator-text" data-i18n="connection.disconnected">Disconnesso</span>
+        </div>
       </div>
     </header>
 
     <!-- Tab Navigation -->
     <nav class="tabs">
-      <button class="tab-button active" data-tab="tab-live">Meeting Live</button>
-      <button class="tab-button" data-tab="tab-batch">Trascrizione File</button>
-      <button class="tab-button" data-tab="tab-config">Configurazione</button>
-      <button class="tab-button" data-tab="tab-history">Storico</button>
+      <button class="tab-button active" data-tab="tab-live" data-i18n="tabs.live">Meeting Live</button>
+      <button class="tab-button" data-tab="tab-batch" data-i18n="tabs.batch">Trascrizione File</button>
+      <button class="tab-button" data-tab="tab-config" data-i18n="tabs.config">Configurazione</button>
+      <button class="tab-button" data-tab="tab-history" data-i18n="tabs.history">Storico</button>
     </nav>
 
     <!-- Tab Content -->
@@ -39,8 +45,8 @@
               </div>
               <div class="status-message" id="status-message"></div>
               <div class="control-buttons">
-                <button id="btn-start-meeting" class="btn btn-primary">Avvia</button>
-                <button id="btn-stop-meeting" class="btn btn-danger" disabled>Termina</button>
+                <button id="btn-start-meeting" class="btn btn-primary" data-i18n="controls.start">Avvia</button>
+                <button id="btn-stop-meeting" class="btn btn-danger" data-i18n="controls.stop" disabled>Termina</button>
               </div>
             </div>
           </div>
@@ -50,7 +56,7 @@
             <!-- Transcript Panel -->
             <div class="panel transcript-panel">
               <div class="panel-header">
-                <h3>Trascrizione</h3>
+                <h3 data-i18n="panels.transcript">Trascrizione</h3>
               </div>
               <div class="panel-body">
                 <div id="transcript-display" class="transcript-display"></div>
@@ -60,7 +66,7 @@
             <!-- AI Chat Panel -->
             <div class="panel chat-panel">
               <div class="panel-header">
-                <h3>Chat AI</h3>
+                <h3 data-i18n="panels.chat">Chat AI</h3>
               </div>
               <div class="panel-body">
                 <div id="chat-display" class="chat-display"></div>
@@ -69,12 +75,13 @@
                     type="text"
                     id="chat-input"
                     class="chat-input"
+                    data-i18n-placeholder="chat.placeholder"
                     placeholder="Fai una domanda…"
                     disabled
                   >
-                  <button id="btn-send-chat" class="btn btn-primary" disabled>Invia</button>
+                  <button id="btn-send-chat" class="btn btn-primary" data-i18n="controls.send" disabled>Invia</button>
                 </div>
-                <div id="chat-thinking" class="chat-thinking" style="display: none;">
+                <div id="chat-thinking" class="chat-thinking" data-i18n="chat.thinking" style="display: none;">
                   L'agente sta pensando…
                 </div>
               </div>
@@ -89,31 +96,33 @@
           <!-- Control Panel -->
           <div class="batch-control-panel">
             <div class="form-group">
-              <label for="batch-file-path">File:</label>
+              <label for="batch-file-path" data-i18n="batch.fileLabel">File:</label>
               <input
                 type="text"
                 id="batch-file-path"
                 class="batch-input"
+                data-i18n-placeholder="batch.filePlaceholder"
                 placeholder="C:\percorso\file.mp4"
               >
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label for="batch-provider">Provider:</label>
+                <label for="batch-provider" data-i18n="batch.providerLabel">Provider:</label>
                 <select id="batch-provider" class="batch-select">
-                  <option value="default">default (da .env)</option>
+                  <option value="default" data-i18n="batch.providerDefault">default (da .env)</option>
                   <option value="local">local</option>
                   <option value="deepgram">deepgram</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label for="batch-track">Traccia:</label>
+                <label for="batch-track" data-i18n="batch.trackLabel">Traccia:</label>
                 <input
                   type="number"
                   id="batch-track"
                   class="batch-input-small"
+                  data-i18n-placeholder="batch.trackPlaceholder"
                   placeholder="tutte"
                   min="0"
                 >
@@ -121,17 +130,17 @@
 
               <div class="form-group checkbox">
                 <input type="checkbox" id="batch-skip-llm">
-                <label for="batch-skip-llm">Salta recap LLM</label>
+                <label for="batch-skip-llm" data-i18n="batch.skipLlm">Salta recap LLM</label>
               </div>
             </div>
 
-            <button id="btn-start-batch" class="btn btn-primary">Trascrivi</button>
+            <button id="btn-start-batch" class="btn btn-primary" data-i18n="batch.transcribe">Trascrivi</button>
           </div>
 
           <!-- Progress Log -->
           <div class="panel batch-panel">
             <div class="panel-header">
-              <h3>Avanzamento</h3>
+              <h3 data-i18n="batch.progressTitle">Avanzamento</h3>
             </div>
             <div class="panel-body">
               <div id="batch-log" class="batch-log"></div>
@@ -146,37 +155,37 @@
           <!-- Audio Devices Section -->
           <div class="config-section">
             <div class="section-header">
-              <h3>Dispositivi audio</h3>
-              <button id="btn-refresh-devices" class="btn btn-secondary">Aggiorna</button>
+              <h3 data-i18n="config.devicesTitle">Dispositivi audio</h3>
+              <button id="btn-refresh-devices" class="btn btn-secondary" data-i18n="common.refresh">Aggiorna</button>
             </div>
 
             <div class="form-group">
-              <label for="config-device-mic">Microfono:</label>
+              <label for="config-device-mic" data-i18n="config.micLabel">Microfono:</label>
               <div class="select-wrapper">
                 <select id="config-device-mic" class="config-select">
-                  <option value="">— da .env —</option>
+                  <option value="" data-i18n="config.fromEnv">— da .env —</option>
                 </select>
               </div>
             </div>
 
             <div class="form-group">
-              <label for="config-device-system">Audio sistema:</label>
+              <label for="config-device-system" data-i18n="config.systemLabel">Audio sistema:</label>
               <div class="select-wrapper">
                 <select id="config-device-system" class="config-select">
-                  <option value="">— da .env —</option>
+                  <option value="" data-i18n="config.fromEnv">— da .env —</option>
                 </select>
-                <span class="loopback-hint" style="display: none;">★ candidato loopback</span>
+                <span class="loopback-hint" data-i18n="config.loopbackHint" style="display: none;">★ candidato loopback</span>
               </div>
             </div>
           </div>
 
           <!-- Transcription Section -->
           <div class="config-section">
-            <h3>Trascrizione</h3>
+            <h3 data-i18n="config.transcriptionTitle">Trascrizione</h3>
 
             <div class="form-row">
               <div class="form-group">
-                <label for="config-provider">Provider:</label>
+                <label for="config-provider" data-i18n="config.providerLabel">Provider:</label>
                 <select id="config-provider" class="config-select">
                   <option value="deepgram">deepgram</option>
                   <option value="local">local</option>
@@ -184,7 +193,7 @@
               </div>
 
               <div class="form-group" id="config-deepgram-language-group">
-                <label for="config-deepgram-language">Lingua (Deepgram):</label>
+                <label for="config-deepgram-language" data-i18n="config.deepgramLangLabel">Lingua (Deepgram):</label>
                 <input
                   type="text"
                   id="config-deepgram-language"
@@ -194,7 +203,7 @@
               </div>
 
               <div class="form-group" id="config-local-language-group" style="display: none;">
-                <label for="config-local-language">Lingua (locale):</label>
+                <label for="config-local-language" data-i18n="config.localLangLabel">Lingua (locale):</label>
                 <input
                   type="text"
                   id="config-local-language"
@@ -205,7 +214,7 @@
             </div>
 
             <div class="form-group" id="config-whisper-model-group" style="display: none;">
-              <label for="config-whisper-model">Modello Whisper locale:</label>
+              <label for="config-whisper-model" data-i18n="config.whisperModelLabel">Modello Whisper locale:</label>
               <select id="config-whisper-model" class="config-select">
                 <option value="tiny">tiny</option>
                 <option value="base">base</option>
@@ -217,24 +226,24 @@
 
           <!-- Options Section -->
           <div class="config-section">
-            <h3>Opzioni</h3>
+            <h3 data-i18n="config.optionsTitle">Opzioni</h3>
 
             <div class="form-group checkbox">
               <input type="checkbox" id="config-is-live-meeting">
-              <label for="config-is-live-meeting">Meeting dal vivo (IS_LIVE_MEETING)</label>
+              <label for="config-is-live-meeting" data-i18n="config.isLiveMeeting">Meeting dal vivo (IS_LIVE_MEETING)</label>
             </div>
 
             <div class="form-group checkbox">
               <input type="checkbox" id="config-skip-llm">
-              <label for="config-skip-llm">Salta recap LLM (SKIP_LLM)</label>
+              <label for="config-skip-llm" data-i18n="config.skipLlm">Salta recap LLM (SKIP_LLM)</label>
             </div>
           </div>
 
           <!-- Save Section -->
           <div class="config-section">
-            <button id="btn-save-config" class="btn btn-primary">Salva</button>
+            <button id="btn-save-config" class="btn btn-primary" data-i18n="config.save">Salva</button>
             <div id="config-message" class="config-message" style="display: none;"></div>
-            <p class="config-note">
+            <p class="config-note" data-i18n="config.note">
               Le modifiche valgono per la sessione corrente della GUI e non scrivono il file .env.
             </p>
           </div>
@@ -247,8 +256,8 @@
           <!-- Meeting List Panel -->
           <div class="history-list-panel">
             <div class="history-header">
-              <h3>Meeting salvati</h3>
-              <button id="btn-refresh-history" class="btn btn-secondary">Aggiorna</button>
+              <h3 data-i18n="history.savedTitle">Meeting salvati</h3>
+              <button id="btn-refresh-history" class="btn btn-secondary" data-i18n="common.refresh">Aggiorna</button>
             </div>
             <div class="history-list" id="history-list">
               <!-- Filled by JavaScript -->
@@ -258,14 +267,14 @@
           <!-- Viewer Panel -->
           <div class="history-viewer-panel">
             <div class="viewer-header" id="viewer-header">
-              <h3 id="viewer-title">Seleziona un meeting</h3>
+              <h3 id="viewer-title" data-i18n="history.selectMeeting">Seleziona un meeting</h3>
               <div class="viewer-tabs" id="viewer-tabs" style="display: none;">
-                <button id="btn-transcript-tab" class="viewer-tab-button active" data-view="transcript">Transcript</button>
-                <button id="btn-recap-tab" class="viewer-tab-button" data-view="recap" disabled>Recap</button>
+                <button id="btn-transcript-tab" class="viewer-tab-button active" data-view="transcript" data-i18n="panels.transcript">Transcript</button>
+                <button id="btn-recap-tab" class="viewer-tab-button" data-view="recap" data-i18n="history.recapTab" disabled>Recap</button>
               </div>
             </div>
             <div class="viewer-content" id="viewer-content">
-              <div class="viewer-placeholder">Seleziona un meeting per visualizzare il contenuto</div>
+              <div class="viewer-placeholder" data-i18n="history.viewerPlaceholder">Seleziona un meeting per visualizzare il contenuto</div>
             </div>
           </div>
         </div>
@@ -273,6 +282,7 @@
     </main>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

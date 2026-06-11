@@ -1,0 +1,98 @@
+{
+  "common": {
+    "refresh": "Refresh"
+  },
+  "connection": {
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "tabs": {
+    "live": "Live Meeting",
+    "batch": "File Transcription",
+    "config": "Configuration",
+    "history": "History"
+  },
+  "controls": {
+    "start": "Start",
+    "stop": "Stop",
+    "send": "Send"
+  },
+  "status": {
+    "idle": "Idle",
+    "starting": "Starting…",
+    "running": "Running",
+    "stopping": "Stopping…",
+    "stopped": "Stopped",
+    "error": "Error"
+  },
+  "panels": {
+    "transcript": "Transcript",
+    "chat": "AI Chat"
+  },
+  "chat": {
+    "placeholder": "Ask a question…",
+    "thinking": "The agent is thinking…",
+    "you": "You:",
+    "agent": "Agent:",
+    "errorPrefix": "Error:"
+  },
+  "batch": {
+    "fileLabel": "File:",
+    "filePlaceholder": "C:\\path\\file.mp4",
+    "providerLabel": "Provider:",
+    "providerDefault": "default (from .env)",
+    "trackLabel": "Track:",
+    "trackPlaceholder": "all",
+    "skipLlm": "Skip LLM recap",
+    "transcribe": "Transcribe",
+    "progressTitle": "Progress",
+    "noFilePath": "Please enter the file path",
+    "probing": "Analyzing file…",
+    "decoding": "Decoding track {track}/{total}…",
+    "transcribing": "Transcribing track {track} ({sec}s of audio)…",
+    "transcriptionError": "Track {track} error: {message}",
+    "trackDone": "✔ Track {track} done",
+    "saving": "Saving…",
+    "done": "✔ Done → {path}",
+    "recap": "✔ Recap → {path}",
+    "error": "Error: {message}"
+  },
+  "config": {
+    "devicesTitle": "Audio devices",
+    "micLabel": "Microphone:",
+    "systemLabel": "System audio:",
+    "fromEnv": "— from .env —",
+    "loopbackHint": "★ loopback candidate",
+    "transcriptionTitle": "Transcription",
+    "providerLabel": "Provider:",
+    "deepgramLangLabel": "Language (Deepgram):",
+    "localLangLabel": "Language (local):",
+    "whisperModelLabel": "Local Whisper model:",
+    "optionsTitle": "Options",
+    "isLiveMeeting": "Live meeting (IS_LIVE_MEETING)",
+    "skipLlm": "Skip LLM recap (SKIP_LLM)",
+    "save": "Save",
+    "note": "Changes apply to the current GUI session and do not write the .env file.",
+    "devicesRefreshed": "Devices refreshed",
+    "saveError": "Save failed",
+    "saveSuccess": "Configuration saved ✓",
+    "genericError": "Error: {message}"
+  },
+  "history": {
+    "savedTitle": "Saved meetings",
+    "selectMeeting": "Select a meeting",
+    "recapTab": "Recap",
+    "viewerPlaceholder": "Select a meeting to view its content",
+    "empty": "No saved meetings",
+    "transcriptAvailable": "Transcript available",
+    "recapAvailable": "Recap available"
+  },
+  "placeholders": {
+    "phase3": "Available in phase 3",
+    "phase4": "Available in phase 4"
+  },
+  "lang": {
+    "en": "English",
+    "it": "Italiano"
+  }
+}
