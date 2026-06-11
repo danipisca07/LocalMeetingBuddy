@@ -1,7 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const RECAP_PROMPT = "Crea un recap del meeting in italiano. Formatta l'output in Markdown.";
+const RECAP_PROMPT_FILE = path.join(__dirname, '..', 'prompts', 'recap-prompt.md');
+const FALLBACK_RECAP_PROMPT = "Create a meeting recap in Italian. Format the output in Markdown.";
+
+function loadRecapPrompt() {
+  try {
+    return fs.readFileSync(RECAP_PROMPT_FILE, 'utf8');
+  } catch {
+    console.warn(`Recap prompt file not found at ${RECAP_PROMPT_FILE}. Using fallback prompt.`);
+    return FALLBACK_RECAP_PROMPT;
+  }
+}
 
 /**
  * Writes the two end-of-meeting artifacts, shared by the live app and the
@@ -30,7 +40,7 @@ async function saveMeetingOutputs(transcriptManager, aiClient, options = {}) {
   if (skipLlm || !aiClient) return;
 
   try {
-    const recap = await aiClient.query(RECAP_PROMPT);
+    const recap = await aiClient.query(loadRecapPrompt());
     console.log(`\nMeeting Recap: ${recap}\n`);
     const recapPath = path.join(outDir, `${prefix}-meeting-recap.md`);
     fs.writeFileSync(recapPath, recap);
@@ -40,4 +50,4 @@ async function saveMeetingOutputs(transcriptManager, aiClient, options = {}) {
   }
 }
 
-module.exports = { saveMeetingOutputs, RECAP_PROMPT };
+module.exports = { saveMeetingOutputs };
