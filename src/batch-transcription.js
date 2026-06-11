@@ -23,6 +23,7 @@ const CONFIDENCE_THRESHOLD = 0.85; // mirrors index.js
  *   skipLlm?: boolean,
  *   outDir?: string,             // default 'meetings'
  *   confidenceThreshold?: number,// default 0.85
+ *   userContext?: string,        // extra context injected into the recap prompt
  *   onEvent?: (evt) => void,     // progress callback
  * }} options
  * @returns {Promise<{outputs: {transcriptPath: string, recapPath: string|null}, prefix: string}>}
@@ -34,6 +35,7 @@ async function transcribeFile(inputPath, options = {}) {
     skipLlm = false,
     outDir = 'meetings',
     confidenceThreshold = CONFIDENCE_THRESHOLD,
+    userContext = '',
     onEvent = () => {},
   } = options;
 
@@ -69,6 +71,9 @@ async function transcribeFile(inputPath, options = {}) {
     const trackCount = trackIndices.length;
     const transcriptManager = new TranscriptManager();
     const aiClient = skipLlm ? null : createAIService(transcriptManager);
+    if (aiClient && userContext) {
+      aiClient.setUserContext(userContext);
+    }
     const baseTimestamp = Date.now();
 
     // Transcode each track

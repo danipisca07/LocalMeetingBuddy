@@ -55,7 +55,7 @@ Set `TRANSCRIPTION_PROVIDER=local` to run fully on-device using Whisper via [she
 
 | Variable | Description |
 | --- | --- |
-| `LOCAL_WHISPER_MODEL` | `tiny` / `base` / `small` / `medium` (default: `base`) |
+| `LOCAL_WHISPER_MODEL` | `tiny` / `base` / `small` / `medium` / `large-v3` (default: `base`). `large-v3` downloads ~1 GB on first use (slower start, best quality). |
 | `LOCAL_SPEAKER_THRESHOLD` | Speaker diarization sensitivity (lower = more utterances merged) |
 | `LOCAL_TRANSCRIPTION_MODELS_DIR` | Override models directory |
 

@@ -547,6 +547,7 @@ async function handleStartBatch() {
   const providerSelect = document.getElementById('batch-provider');
   const trackInput = document.getElementById('batch-track');
   const skipLlmCheckbox = document.getElementById('batch-skip-llm');
+  const contextInput = document.getElementById('batch-context');
 
   if (!selectedBatchFile) {
     alert(i18n.t('batch.noFile'));
@@ -556,6 +557,7 @@ async function handleStartBatch() {
   const provider = providerSelect ? providerSelect.value : null;
   const track = trackInput && trackInput.value ? parseInt(trackInput.value, 10) : null;
   const skipLlm = skipLlmCheckbox ? skipLlmCheckbox.checked : false;
+  const context = contextInput ? contextInput.value : '';
 
   // Clear log and upload the file first
   clearBatchLog();
@@ -588,6 +590,7 @@ async function handleStartBatch() {
     provider: provider === 'default' ? null : provider,
     track,
     skipLlm,
+    context,
   });
 }
 

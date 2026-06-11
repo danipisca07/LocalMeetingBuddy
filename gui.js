@@ -502,6 +502,7 @@ async function handleStartBatch(ws, msg) {
   }
 
   const { filePath, provider, track, skipLlm } = msg;
+  const batchContext = typeof msg.context === 'string' ? msg.context : '';
 
   // Validate filePath
   if (!filePath || typeof filePath !== 'string') {
@@ -541,6 +542,7 @@ async function handleStartBatch(ws, msg) {
     track: track !== null ? track : null,
     skipLlm: skipLlm === true,
     outDir: 'meetings',
+    userContext: batchContext,
     onEvent: (evt) => {
       // Broadcast batch progress to all clients
       broadcastMessage({

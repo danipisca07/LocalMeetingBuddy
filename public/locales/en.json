@@ -77,6 +77,7 @@
     "deepgramLangLabel": "Language (Deepgram):",
     "localLangLabel": "Language (local):",
     "whisperModelLabel": "Local Whisper model:",
+    "whisperModelHint": "Larger models are downloaded on first use (large-v3 ≈ 1 GB): the first session start may take a few minutes.",
     "optionsTitle": "Options",
     "isLiveMeeting": "Live meeting (IS_LIVE_MEETING)",
     "skipLlm": "Skip LLM recap (SKIP_LLM)",

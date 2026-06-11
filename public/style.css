@@ -731,6 +731,13 @@ header h1 {
   white-space: nowrap;
 }
 
+.config-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  line-height: 1.35;
+}
+
 .config-message {
   padding: 0.75rem;
   border-radius: 6px;

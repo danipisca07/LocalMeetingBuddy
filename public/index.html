@@ -154,6 +154,17 @@
               </div>
             </div>
 
+            <div class="form-group">
+              <label for="batch-context" data-i18n="context.title">Contesto aggiuntivo</label>
+              <textarea
+                id="batch-context"
+                class="context-input"
+                rows="3"
+                data-i18n-placeholder="context.placeholder"
+                placeholder="Agenda, partecipanti, obiettivi… informazioni extra per l'AI (opzionale)"
+              ></textarea>
+            </div>
+
             <button id="btn-start-batch" class="btn btn-primary" data-i18n="batch.transcribe">Trascrivi</button>
           </div>
 
@@ -240,7 +251,9 @@
                 <option value="base">base</option>
                 <option value="small">small</option>
                 <option value="medium">medium</option>
+                <option value="large-v3">large-v3</option>
               </select>
+              <p class="config-hint" data-i18n="config.whisperModelHint">I modelli più grandi si scaricano al primo utilizzo (large-v3 ≈ 1 GB): il primo avvio può richiedere alcuni minuti.</p>
             </div>
           </div>
 

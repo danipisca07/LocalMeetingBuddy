@@ -11,6 +11,7 @@
  *   --out <dir>                  Output directory (default: meetings).
  *   --track <n>                  Only transcribe audio stream n (default: all).
  *   --skip-llm                   Write the transcript only; skip the LLM recap.
+ *   --context <file.md>          Markdown file with extra context for the recap.
  *   -h, --help                   Show this help.
  *
  * Every audio track in the file is transcribed and diarized independently.
@@ -25,7 +26,7 @@ const path = require('path');
 const { transcribeFile } = require('../src/batch-transcription');
 
 function parseArgs(argv) {
-  const opts = { input: null, provider: null, out: 'meetings', track: null, skipLlm: false };
+  const opts = { input: null, provider: null, out: 'meetings', track: null, skipLlm: false, contextFile: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     switch (arg) {
@@ -45,6 +46,9 @@ function parseArgs(argv) {
       case '--skip-llm':
         opts.skipLlm = true;
         break;
+      case '--context':
+        opts.contextFile = argv[++i];
+        break;
       default:
         if (arg.startsWith('-')) {
           throw new Error(`Unknown option: ${arg}`);
@@ -59,7 +63,7 @@ function parseArgs(argv) {
 function printUsage() {
   console.log(
     'Usage: node scripts/transcribe-file.js <input-file> ' +
-    '[--provider local|deepgram] [--out <dir>] [--track <n>] [--skip-llm]'
+    '[--provider local|deepgram] [--out <dir>] [--track <n>] [--skip-llm] [--context <file.md>]'
   );
 }
 
@@ -82,6 +86,18 @@ async function main() {
   if (!fs.existsSync(inputPath)) {
     console.error(`Error: file not found: ${inputPath}`);
     process.exit(1);
+  }
+
+  // Load the optional context file (must exist if provided)
+  let userContext = '';
+  if (opts.contextFile) {
+    try {
+      userContext = fs.readFileSync(opts.contextFile, 'utf8');
+      console.log(`Context loaded from ${opts.contextFile}`);
+    } catch (err) {
+      console.error(`Error: failed to read context file "${opts.contextFile}": ${err.message}`);
+      process.exit(1);
+    }
   }
 
   // Determine provider for banner output
@@ -130,6 +146,7 @@ async function main() {
       track: opts.track,
       skipLlm: opts.skipLlm,
       outDir: opts.out,
+      userContext,
       onEvent: handleEvent,
     });
     console.log('\nDone.');

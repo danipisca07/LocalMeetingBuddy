@@ -77,6 +77,7 @@
     "deepgramLangLabel": "Lingua (Deepgram):",
     "localLangLabel": "Lingua (locale):",
     "whisperModelLabel": "Modello Whisper locale:",
+    "whisperModelHint": "I modelli più grandi si scaricano al primo utilizzo (large-v3 ≈ 1 GB): il primo avvio può richiedere alcuni minuti.",
     "optionsTitle": "Opzioni",
     "isLiveMeeting": "Meeting dal vivo (IS_LIVE_MEETING)",
     "skipLlm": "Salta recap LLM (SKIP_LLM)",
