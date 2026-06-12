@@ -28,7 +28,7 @@ class MeetingSession extends EventEmitter {
       audioDeviceIdMic: config.audioDeviceIdMic || process.env.AUDIO_DEVICE_ID_MIC,
       audioDeviceIdSystem: config.audioDeviceIdSystem || process.env.AUDIO_DEVICE_ID_SYSTEM,
       sampleRate: config.sampleRate || 16000,
-      confidenceThreshold: config.confidenceThreshold !== undefined ? config.confidenceThreshold : 0.85,
+      confidenceThreshold: config.confidenceThreshold !== undefined ? config.confidenceThreshold : 0.50,
       skipLlm: config.skipLlm !== undefined ? config.skipLlm : process.env.SKIP_LLM === 'true',
       userContext: config.userContext || '',
     };
