@@ -1084,6 +1084,20 @@ async function handleSelectMeeting(prefix, itemElement) {
       recapButton.disabled = meeting.recap === null;
     }
 
+    // Show download buttons, enabling each based on file availability
+    const viewerActions = document.getElementById('viewer-actions');
+    if (viewerActions) {
+      viewerActions.style.display = 'flex';
+    }
+    const dlTranscript = document.getElementById('btn-download-transcript');
+    if (dlTranscript) {
+      dlTranscript.disabled = meeting.transcript === null;
+    }
+    const dlRecap = document.getElementById('btn-download-recap');
+    if (dlRecap) {
+      dlRecap.disabled = meeting.recap === null;
+    }
+
     // Display content
     displayHistoryContent(meeting.transcript, meeting.recap);
   } catch (err) {
@@ -1140,6 +1154,23 @@ function handleViewerTabClick(event) {
 }
 
 /**
+ * Handle a download button click: trigger a browser download of the
+ * selected meeting's transcript or recap file.
+ */
+function handleDownloadClick(event) {
+  if (!currentHistoryMeeting) return;
+  const type = event.currentTarget.getAttribute('data-type');
+  const url = `/api/meetings/${encodeURIComponent(currentHistoryMeeting)}/download/${type}`;
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = '';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
  * Initialize Phase 4: Meeting History
  */
 function initializeHistory() {
@@ -1151,6 +1182,11 @@ function initializeHistory() {
   const tabButtons = document.querySelectorAll('.viewer-tab-button');
   tabButtons.forEach(btn => {
     btn.addEventListener('click', handleViewerTabClick);
+  });
+
+  const downloadButtons = document.querySelectorAll('.viewer-download-button');
+  downloadButtons.forEach(btn => {
+    btn.addEventListener('click', handleDownloadClick);
   });
 
   // Load initial history list

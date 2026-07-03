@@ -922,6 +922,34 @@ header h1 {
   color: var(--light-text);
 }
 
+.viewer-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.viewer-download-button {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--light-text);
+  transition: all 0.2s;
+}
+
+.viewer-download-button:hover:not(:disabled) {
+  color: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+.viewer-download-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: var(--light-text);
+}
+
 .viewer-content {
   flex: 1;
   overflow-y: auto;

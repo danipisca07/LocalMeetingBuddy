@@ -8,7 +8,7 @@ const { exec } = require('child_process');
 const { MeetingSession } = require('./src/meeting-session');
 const { transcribeFile } = require('./src/batch-transcription');
 const { ConfigManager } = require('./src/config-manager');
-const { listMeetings, getMeeting } = require('./src/meeting-history');
+const { listMeetings, getMeeting, resolveMeetingFile } = require('./src/meeting-history');
 
 const app = express();
 const port = process.env.GUI_PORT || 3000;
@@ -197,6 +197,30 @@ app.get('/api/meetings/:prefix', async (req, res) => {
     const statusCode = err.message.includes('Invalid prefix') ? 400 : 404;
     res.status(statusCode).json({ error: 'Meeting not found' });
   }
+});
+
+/**
+ * GET /api/meetings/:prefix/download/:type
+ * Download a meeting's transcript or recap file as an attachment
+ */
+app.get('/api/meetings/:prefix/download/:type', (req, res) => {
+  const { prefix, type } = req.params;
+  let filePath, fileName;
+  try {
+    ({ filePath, fileName } = resolveMeetingFile(prefix, type, 'meetings'));
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, fileName, (err) => {
+    if (err && !res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 });
 
 // Create HTTP server

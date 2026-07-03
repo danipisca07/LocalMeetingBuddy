@@ -95,7 +95,9 @@
     "viewerPlaceholder": "Select a meeting to view its content",
     "empty": "No saved meetings",
     "transcriptAvailable": "Transcript available",
-    "recapAvailable": "Recap available"
+    "recapAvailable": "Recap available",
+    "downloadTranscript": "Download transcript",
+    "downloadRecap": "Download recap"
   },
   "placeholders": {
     "phase3": "Available in phase 3",

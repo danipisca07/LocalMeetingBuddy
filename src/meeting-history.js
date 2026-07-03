@@ -131,4 +131,38 @@ async function getMeeting(prefix, dir = 'meetings') {
   return { prefix, transcript, recap };
 }
 
-module.exports = { listMeetings, getMeeting };
+/**
+ * Resolve the on-disk path and download filename for a meeting file.
+ * @param {string} prefix - Meeting prefix (validated against path traversal)
+ * @param {'transcript'|'recap'} type
+ * @param {string} dir - Directory containing meeting files (default: 'meetings')
+ * @returns {{filePath: string, fileName: string}}
+ * @throws Error if prefix/type is invalid
+ */
+function resolveMeetingFile(prefix, type, dir = 'meetings') {
+  if (!prefix || typeof prefix !== 'string') {
+    throw new Error('Invalid prefix');
+  }
+  if (prefix.includes('/') || prefix.includes('\\') || prefix.includes('..') || /[\x00-\x1f\x7f]/.test(prefix)) {
+    throw new Error('Invalid prefix');
+  }
+
+  let fileName;
+  if (type === 'transcript') {
+    fileName = `${prefix}-meeting-transcript.txt`;
+  } else if (type === 'recap') {
+    fileName = `${prefix}-meeting-recap.md`;
+  } else {
+    throw new Error('Invalid type');
+  }
+
+  const baseDir = path.resolve(dir);
+  const filePath = path.resolve(dir, fileName);
+  if (!filePath.startsWith(baseDir)) {
+    throw new Error('Invalid prefix');
+  }
+
+  return { filePath, fileName };
+}
+
+module.exports = { listMeetings, getMeeting, resolveMeetingFile };
